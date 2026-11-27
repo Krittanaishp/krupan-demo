@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}ห้อง{% endblock %}
+{% block content %}
+{% include "places/_head.html" %}
+<div class="page-head page-head-row">
+  <div>
+    <h2>ห้อง / หน่วยงาน</h2>
+    <p class="muted">ทั้งหมด {{ n_all }} ห้อง · ครุภัณฑ์ที่ยังไม่จัดเข้าห้อง
+      <a href="/assets?loc=none">{{ "{:,}".format(unassigned) }} ชิ้น</a></p>
+  </div>
+  {% if can_edit %}
+  <div class="head-actions">
+    <a class="btn btn-secondary" href="/places/mapping">จัดห้องจากข้อมูลเดิม</a>
+  </div>
+  {% endif %}
+</div>
+
+{% for m in recent_merges %}
+<div class="notice notice-info merge-notice" role="status">
+  <p>รวม {% for r in m.merged_rooms %}“{{ r.name }}”{% if not loop.last %}, {% endif %}{% endfor %}
+    เข้ากับ “{{ m.kept_name }}” แล้ว ({{ m.n_items }} ชิ้น · {{ m.merged_at | thai_datetime }})</p>
+  <form method="post" action="/places/merges/{{ m.id }}/undo" class="inline">
+    {{ csrf_field }}
+    <button type="submit" class="btn btn-small btn-secondary">ยกเลิกการรวม</button>
+  </form>
+  <p class="hint">ยกเลิกได้ภายใน 1 วันหลังรวม ครุภัณฑ์ทุกชิ้นจะกลับห้องเดิม</p>
+</div>
+{% endfor %}
+
+{% if can_edit %}
+<form method="post" action="/locations" class="card inline-add">
+  {{ csrf_field }}
+  <div class="field">
+    <label for="new-location">เพิ่มห้องใหม่</label>
+    <input id="new-location" name="name" required maxlength="200" placeholder="เช่น ห้องปกครอง">
+  </div>
+  <button type="submit" class="btn">เพิ่มห้อง</button>
+</form>
+{% else %}
+<p class="hint"><a href="/login?next=/places">เข้าสู่ระบบ</a> ด้วยบัญชี editor เพื่อเพิ่มหรือแก้ไขห้อง</p>
+{% endif %}
+
+<form id="room-filters" class="filters" action="/places" method="get" role="search" data-autofilter
+      hx-get="/places" hx-trigger="krupan:filter" hx-target="#rooms-results" hx-swap="outerHTML"
+      hx-indicator="#rooms-results" hx-sync="this:replace">
+  <div class="field field-search">
+    <label for="room-q">ค้นหาชื่อห้อง</label>
+    <input id="room-q" name="q" type="search" value="{{ f.q }}" autocomplete="off" placeholder="เช่น ประชุม">
+  </div>
+  <div class="field">
+    <label for="room-status">สถานะ</label>
+    <select id="room-status" name="status">
+      {% for value, label in statuses %}<option value="{{ value }}" {% if f.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+  </div>
+  {% for key, label, kind, all_label in (("building", "อาคาร/พื้นที่", "buildings", "ทุกอาคาร"), ("dept", "ฝ่ายที่ดูแล", "departments", "ทุกฝ่าย")) %}
+  <div class="field">
+    <label for="room-{{ key }}">{{ label }}</label>
+    <select id="room-{{ key }}" name="{{ key }}">
+      <option value="">{{ all_label }}</option>
+      {% for b in areas[kind] %}<option value="{{ b.id }}" {% if f[key] == b.id | string %}selected{% endif %}>{{ b.name }}{% if not b.active %} · ปิดใช้งาน{% endif %}</option>{% endfor %}
+      <option value="{{ NO_AREA }}" {% if f[key] == NO_AREA %}selected{% endif %}>ยังไม่ระบุ</option>
+    </select>
+  </div>
+  {% endfor %}
+  <div class="field">
+    <label for="room-cat">หมวดครุภัณฑ์</label>
+    <select id="room-cat" name="cat">
+      <option value="">ทุกหมวด</option>
+      {% for c in categories %}<option value="{{ c.code }}" {% if f.cat == c.code %}selected{% endif %}>{{ c.name }} ({{ c.n }})</option>{% endfor %}
+    </select>
+  </div>
+  <noscript><button type="submit" class="btn">ค้นหา</button></noscript>
+</form>
+
+{# ช่องติ๊กในตารางผูกกับฟอร์มนี้ด้วย form="rooms-form" (แถวมีฟอร์มแก้ของตัวเอง ฟอร์มซ้อนกันไม่ได้) #}
+{% if can_edit %}
+<form id="rooms-form" method="post" action="/places/bulk" class="card merge-bar bulk-bar">
+  {{ csrf_field }}
+  <input type="hidden" name="back" value="{{ back }}">
+  <span class="bulk-title">ห้องที่ติ๊ก:</span>
+  <label class="sr-only" for="bulk-building">ตั้งอาคาร/พื้นที่</label>
+  <select id="bulk-building" name="building">
+    <option value="">อาคาร: ไม่เปลี่ยน</option>
+    {% for b in areas.buildings if b.active %}<option value="{{ b.id }}">อาคาร: {{ b.name }}</option>{% endfor %}
+    <option value="{{ NO_AREA }}">อาคาร: ล้างเป็นไม่ระบุ</option>
+  </select>
+  <label class="sr-only" for="bulk-dept">ตั้งฝ่ายที่ดูแล</label>
+  <select id="bulk-dept" name="department">
+    <option value="">ฝ่าย: ไม่เปลี่ยน</option>
+    {% for d in areas.departments if d.active %}<option value="{{ d.id }}">ฝ่าย: {{ d.name }}</option>{% endfor %}
+    <option value="{{ NO_AREA }}">ฝ่าย: ล้างเป็นไม่ระบุ</option>
+  </select>
+  <button type="submit" class="btn btn-small">ตั้งอาคาร/ฝ่าย</button>
+  <button type="submit" class="btn btn-small btn-secondary" formaction="/places/merge/start"
+          {% if merge_blocked %}disabled aria-describedby="merge-blocked"{% endif %}>รวมห้องที่ติ๊ก…</button>
+  {% if merge_blocked %}<span id="merge-blocked" class="hint">{{ merge_blocked }}</span>
+  {% else %}<span class="hint">รวมห้อง: ติ๊กห้องที่เป็นห้องเดียวกันตั้งแต่ 2 ห้อง แล้วเลือกห้องที่จะเก็บไว้ในหน้าถัดไป</span>{% endif %}
+</form>
+{% endif %}
+
+{% include "locations/_rooms_results.html" %}
+<p class="hint">ห้องที่มีครุภัณฑ์หรือประวัติการย้ายอ้างถึงลบไม่ได้ ใช้ “ปิดใช้งาน” แทน (จะไม่แสดงให้เลือกอีก แต่ประวัติยังอยู่)</p>
+
+<section id="areas" class="areas" aria-labelledby="areas-title">
+  <h2 id="areas-title" class="section-title">รายการอาคาร/พื้นที่ และฝ่ายที่ดูแล</h2>
+  {% if is_admin %}<p class="hint">admin เพิ่ม แก้ชื่อ เปลี่ยนลำดับ หรือปิดใช้งานได้ (ลบไม่ได้ เพราะห้องอ้างถึงอยู่) ทุกการแก้บันทึกในประวัติการแก้ไข</p>
+  {% else %}<p class="hint">แก้รายการนี้ได้เฉพาะ admin</p>{% endif %}
+  <div class="areas-grid">
+    {% for kind, label in (("buildings", "อาคาร/พื้นที่"), ("departments", "ฝ่ายที่ดูแล")) %}
+    <div class="card">
+      <h3>{{ label }}</h3>
+      <div class="table-wrap">
+        <table class="assets manage-table stack-table">
+          <thead><tr><th scope="col">ชื่อ</th><th scope="col" class="num">ลำดับ</th>
+            {% if kind == "buildings" %}<th scope="col">เน้นผู้รับผิดชอบ</th>{% endif %}
+            <th scope="col">ใช้งาน</th><th scope="col" class="num">ห้อง</th>{% if is_admin %}<th scope="col"><span class="sr-only">บันทึก</span></th>{% endif %}</tr></thead>
+          <tbody>
+            {% for x in areas[kind] %}
+            {% set fid = kind ~ "-" ~ x.id %}
+            <tr {% if not x.active %}class="inactive"{% endif %}>
+              {% if is_admin %}
+              <td data-label="ชื่อ"><input form="{{ fid }}" name="name" value="{{ x.name }}" required maxlength="200" aria-label="ชื่อ{{ label }}"></td>
+              <td class="num stack-inline" data-label="ลำดับ"><input form="{{ fid }}" name="sort_order" value="{{ x.sort_order }}" inputmode="numeric" size="3" aria-label="ลำดับ"></td>
+              {% if kind == "buildings" %}<td class="stack-inline" data-label="เน้นผู้รับผิดชอบ"><input form="{{ fid }}" type="checkbox" name="holder_focus" value="1" {% if x.holder_focus %}checked{% endif %}
+                  aria-label="ใบรายการตรวจสอบพัสดุเน้นคอลัมน์ผู้รับผิดชอบ"></td>{% endif %}
+              <td class="stack-inline" data-label="ใช้งาน"><input form="{{ fid }}" type="checkbox" name="active" value="1" {% if x.active %}checked{% endif %} aria-label="ใช้งาน"></td>
+              <td class="num stack-inline" data-label="ห้อง">{{ x.n_rooms }}</td>
+              <td class="actions"><form id="{{ fid }}" method="post" action="/places/areas/{{ kind }}/{{ x.id }}" class="inline">{{ csrf_field }}
+                <button type="submit" class="btn btn-small btn-secondary">บันทึก</button></form></td>
+              {% else %}
+              <td class="stack-main">{{ x.name }}</td><td class="num stack-inline" data-label="ลำดับ">{{ x.sort_order }}</td>
+              {% if kind == "buildings" %}<td class="stack-inline" data-label="เน้นผู้รับผิดชอบ">{{ "✓" if x.holder_focus else "—" }}</td>{% endif %}
+              <td class="stack-inline">{{ "ใช้งาน" if x.active else "ปิดใช้งาน" }}</td><td class="num stack-inline" data-label="ห้อง">{{ x.n_rooms }}</td>
+              {% endif %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if is_admin %}
+      <form method="post" action="/places/areas/{{ kind }}" class="inline-add">
+        {{ csrf_field }}
+        <div class="field"><label for="new-{{ kind }}">เพิ่ม{{ label }}</label><input id="new-{{ kind }}" name="name" required maxlength="200"></div>
+        <button type="submit" class="btn btn-secondary">เพิ่ม</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  <p class="hint">“เน้นผู้รับผิดชอบ”: ใบรายการตรวจสอบพัสดุของห้องในอาคารนั้นมีคอลัมน์ผู้รับผิดชอบตัวหนา สำหรับของติดตัวบุคคลที่ต้องไปขอดูจากคน</p>
+</section>
+{% endblock %}

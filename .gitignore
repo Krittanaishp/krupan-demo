@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.venv/
+.pytest_cache/
+
+# ความลับ: ไฟล์ .env สร้างใหม่ทุกเครื่องด้วย scripts/seed_demo.py
+.env
+.env.*
+!.env.example
+
+# ฐานข้อมูลและไฟล์ข้อมูลทุกชนิด (demo สร้างข้อมูลสมมติใหม่ทุกครั้ง ไม่เก็บใน git)
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+backups/
+exports/
+logs/
+*.xlsx
+*.xls
+*.xlsm
+*.csv
+*.pdf
+*.zip
+
+# editor
+.vscode/
+.idea/

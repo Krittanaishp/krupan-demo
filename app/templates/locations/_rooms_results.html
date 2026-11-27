@@ -1,0 +1,91 @@
+{# รายการห้องตามตัวกรอง (htmx แทนที่ทั้งก้อน) #}
+<div id="rooms-results" class="place-results">
+  <div class="results-meta">
+    <p class="count">{% if filtered %}ตรงกับตัวกรอง {{ rows | length }} ห้อง{% else %}{{ rows | length }} ห้อง{% endif %}</p>
+    {% if filtered %}<a class="clear" href="/places" data-filter-clear="#room-filters">ล้างตัวกรอง</a>{% endif %}
+  </div>
+  {% if rows %}
+  <div class="table-wrap">
+    <table class="assets manage-table stack-table">
+      <thead>
+        <tr>
+          {% if can_edit %}<th scope="col"><span class="sr-only">เลือกเพื่อรวมห้อง</span></th>{% endif %}
+          <th scope="col">ชื่อห้อง / อาคาร / ฝ่าย</th>
+          <th scope="col" class="num">ครุภัณฑ์</th>
+          <th scope="col">สถานะ</th>
+          {% if can_edit %}<th scope="col"><span class="sr-only">ดำเนินการ</span></th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in rows %}
+        <tr {% if not l.active %}class="inactive"{% endif %}>
+          {% if can_edit %}
+          <td class="pick stack-inline" data-label="เลือกเพื่อรวม">
+            {% if not l.merged_into_id %}
+            <input type="checkbox" form="rooms-form" name="ids" value="{{ l.id }}" id="pick-{{ l.id }}"
+                   aria-label="เลือก {{ l.name }}">
+            {% endif %}
+          </td>
+          {% endif %}
+          <td class="type-name stack-main">
+            {% if can_edit %}
+            <form method="post" action="/locations/{{ l.id }}" class="type-form room-form">
+              {{ csrf_field }}
+              <input type="hidden" name="back" value="{{ back }}">
+              <label class="sr-only" for="loc-name-{{ l.id }}">ชื่อห้อง</label>
+              <input id="loc-name-{{ l.id }}" name="name" value="{{ l.name }}" required maxlength="200">
+              <label class="sr-only" for="loc-b-{{ l.id }}">อาคาร/พื้นที่ของ {{ l.name }}</label>
+              <select id="loc-b-{{ l.id }}" name="building">
+                <option value="{{ NO_AREA }}">อาคาร: ไม่ระบุ</option>
+                {% for b in areas.buildings if b.active or b.id == l.building_id %}<option value="{{ b.id }}" {% if b.id == l.building_id %}selected{% endif %}>{{ b.name }}</option>{% endfor %}
+              </select>
+              <label class="sr-only" for="loc-d-{{ l.id }}">ฝ่ายที่ดูแลของ {{ l.name }}</label>
+              <select id="loc-d-{{ l.id }}" name="department">
+                <option value="{{ NO_AREA }}">ฝ่าย: ไม่ระบุ</option>
+                {% for d in areas.departments if d.active or d.id == l.department_id %}<option value="{{ d.id }}" {% if d.id == l.department_id %}selected{% endif %}>{{ d.name }}</option>{% endfor %}
+              </select>
+              <button type="submit" class="btn btn-small btn-secondary">บันทึก</button>
+            </form>
+            {% else %}{{ l.name }}
+              {% if l.building_name or l.department_name %}<div class="small muted">{{ l.building_name or "ไม่ระบุอาคาร" }} · {{ l.department_name or "ไม่ระบุฝ่าย" }}</div>{% endif %}
+            {% endif %}
+          </td>
+          <td class="num stack-inline" data-label="ครุภัณฑ์">{% if l.n %}<a href="/assets?loc={{ l.id }}">{{ l.n }}</a>{% else %}0{% endif %}
+            {% if l.n_cat is not none %}<div class="muted small nowrap">หมวดนี้ {{ l.n_cat }}</div>{% endif %}</td>
+          <td class="stack-inline" data-label="สถานะ">
+            {% if l.merged_into_id %}<span class="badge badge-muted">ถูกรวมแล้ว</span>
+              <div class="small muted">เข้ากับ “{{ l.merged_into_name }}”</div>
+            {% elif l.active %}<span class="badge badge-ok">ใช้งาน</span>
+            {% else %}<span class="badge badge-muted">ปิดใช้งาน</span>{% endif %}
+          </td>
+          {% if can_edit %}
+          <td class="actions">
+            {% if not l.merged_into_id %}
+            <form method="post" action="/locations/{{ l.id }}/active" class="inline">
+              {{ csrf_field }}
+              <input type="hidden" name="active" value="{{ 0 if l.active else 1 }}">
+              <button type="submit" class="btn btn-small btn-secondary">{{ "ปิดใช้งาน" if l.active else "เปิดใช้งาน" }}</button>
+            </form>
+            {% endif %}
+            {% if not l.n and not l.n_moves and not l.merged_into_id %}
+            <form method="post" action="/locations/{{ l.id }}/delete" class="inline">
+              {{ csrf_field }}
+              <button type="submit" class="btn btn-small btn-danger">ลบ</button>
+            </form>
+            {% endif %}
+          </td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% elif filtered %}
+  <div class="empty"><p>ไม่มีห้องที่ตรงกับตัวกรอง</p></div>
+  {% else %}
+  <div class="empty">
+    <p>ยังไม่มีห้องในระบบ</p>
+    {% if can_edit %}<p class="muted">เพิ่มห้องด้านบน หรือ <a href="/places/mapping">จัดจากข้อความที่ตั้งเดิม</a> ซึ่งสร้างห้องได้ในบรรทัดเดียวกัน</p>{% endif %}
+  </div>
+  {% endif %}
+</div>

@@ -1,0 +1,2 @@
+{# ปุ่มส่งออกของทุกตาราง (มุมขวาบนของตาราง ชื่อเดียวกันทุกหน้า) ส่งออกตามตัวกรองบนจอ: xlsx_url + query #}
+<a class="xlsx-link"{% if xlsx_id %} id="{{ xlsx_id }}"{% endif %} href="{{ xlsx_url }}{% if query %}?{{ query }}{% endif %}" download>ดาวน์โหลด Excel</a>

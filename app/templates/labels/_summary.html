@@ -1,0 +1,19 @@
+{% if sel_error %}
+  <p class="field-error">{{ sel_error }}</p>
+{% elif not n %}
+  <p class="field-error">ไม่มีครุภัณฑ์ที่ตรงกับที่เลือก</p>
+{% endif %}
+{% for msg in layout_errors.values() %}<p class="field-error">{{ msg }}</p>{% endfor %}
+{% if start_error %}<p class="field-error">{{ start_error }}</p>{% endif %}
+{% if n and not layout_errors %}
+  <p class="summary-big">{{ "{:,}".format(n) }} ดวง · {{ n_pages }} แผ่น</p>
+  <p class="muted">{{ desc }} · แผ่นละ {{ layout.per_page }} ดวง ({{ layout.n_cols }}×{{ layout.n_rows }}, ดวงละ {{ '%g' % layout.label_w }}×{{ '%g' % layout.label_h }} มม.){% if start > 1 %} · แผ่นแรกเริ่มที่ดวงที่ {{ start }}{% endif %}</p>
+{% endif %}
+{% if not net_ok %}
+  <div class="alert-danger" role="alert">
+    <p><strong>{{ net_message }}</strong></p>
+    <p>QR จะฝังที่อยู่ <code>{{ qr_example or base_url }}</code> ตรวจที่หน้า <a href="/settings/network">ตั้งค่าเครือข่าย</a> ก่อนพิมพ์ (admin)</p>
+  </div>
+{% elif qr_example %}
+  <p class="hint">ตัวอย่างที่อยู่ใน QR: <code>{{ qr_example }}</code></p>
+{% endif %}

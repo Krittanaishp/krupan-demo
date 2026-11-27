@@ -1,0 +1,92 @@
+<section id="results" class="results" aria-live="polite">
+  <div class="results-meta">
+    <p class="count">
+      {% if total %}
+        พบ <strong>{{ "{:,}".format(total) }}</strong> รายการ
+        {% if pages > 1 %}<span class="muted">· แสดง {{ (page - 1) * page_size + 1 }}–{{ [page * page_size, total] | min }}</span>{% endif %}
+      {% else %}
+        ไม่พบรายการ
+      {% endif %}
+    </p>
+    <span class="results-links">
+      {% if user and user.can_edit and total and qr_enabled() %}<a href="{{ labels_url }}">พิมพ์สติกเกอร์ QR ตามตัวกรองนี้ ({{ total }} ดวง)</a>{% endif %}
+      {% if filtered %}<a class="clear" href="/assets" data-filter-clear="#filters">ล้างตัวกรอง</a>{% endif %}
+    </span>
+  </div>
+
+  {% if rows %}
+  {% set pick = user and user.can_edit %}
+  {% if pick %}<form method="get" action="/disposals/new" id="dispose-pick">{% endif %}
+  <div class="table-wrap">
+    <table class="assets asset-list">
+      <thead>
+        <tr>
+          {% if pick %}<th scope="col" class="pick-col"><span class="sr-only">เลือก</span></th>{% endif %}
+          <th scope="col">เลขทะเบียน</th>
+          <th scope="col">ชื่อรายการ</th>
+          <th scope="col">หมวด</th>
+          <th scope="col" class="date">วันที่ได้มา</th>
+          <th scope="col" class="num">ราคา (บาท)</th>
+          <th scope="col">ที่ตั้ง</th>
+          <th scope="col">สถานะ</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          {% if pick %}<td class="pick-col">{% if r.status != "จำหน่ายแล้ว" %}<label class="pick-hit"><input type="checkbox" name="ids" value="{{ r.id }}"
+            aria-label="เลือก {{ r.reg_no or r.temp_code }}"><span class="fact-label" aria-hidden="true">เลือกเพื่อจำหน่าย</span></label>{% endif %}</td>{% endif %}
+          <td class="reg">
+            {% if r.reg_no %}{{ r.reg_no }}{% else %}{{ r.temp_code }} <span class="tag" title="ยังไม่มีเลขทะเบียน ใช้รหัสชั่วคราว">ชั่วคราว</span>{% endif %}
+          </td>
+          <td class="name">
+            <a href="/assets/{{ r.id }}">{{ r.name }}</a>
+            {% if r.needs_review %}<span class="flag" title="มีเรื่องที่ต้องตรวจสอบ">รอตรวจ</span>{% endif %}
+          </td>
+          <td class="cat"><span class="fact-label">หมวด: </span>{{ r.category_name or "—" }}</td>
+          <td class="nowrap date">{{ r.acquired_date | thai_date(r.acquired_date_precision) or "—" }}</td>
+          <td class="num price"><span class="fact-label">ราคา: </span>{% if r.unit_price is none %}<span class="muted">ไม่ทราบ</span>{% else %}{{ r.unit_price | money }}<span class="fact-label"> บาท</span>{% endif %}</td>
+          <td class="loc">
+            <span class="fact-label">ที่ตั้ง: </span>{% if r.location_name %}{{ r.location_name }}
+            {% elif r.location_text %}<span class="loc-raw" title="ข้อความเดิมจากไฟล์ Excel ยังไม่ได้จัดเข้าห้อง">{{ r.location_text }}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td class="status"><span class="badge badge-{{ STATUS_CLASS.get(r.status, 'muted') }}">{{ r.status }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if pick %}
+  <div class="pick-actions">
+    <button type="submit" class="btn btn-secondary btn-small">จำหน่ายรายการที่ติ๊กเลือก…</button>
+    <span class="hint">เลือกได้เฉพาะในหน้านี้ ระบบจะให้ตรวจรายการและกรอกหนังสืออนุมัติก่อนบันทึก</span>
+  </div>
+  </form>
+  {% endif %}
+  {% else %}
+  <div class="empty">
+    <p>ไม่พบครุภัณฑ์ที่ตรงกับเงื่อนไข</p>
+    {% if filtered %}<p class="muted">ลองเปลี่ยนคำค้นหรือ <a href="/assets" data-filter-clear="#filters">ล้างตัวกรอง</a></p>{% endif %}
+  </div>
+  {% endif %}
+
+  {% if pages > 1 %}
+  <nav class="pager" aria-label="เลือกหน้า" hx-target="#results" hx-swap="outerHTML show:#results:top" hx-push-url="true" hx-indicator="#results">
+    {% if page > 1 %}
+      <a href="{{ page_url(page - 1) }}" hx-get="{{ page_url(page - 1) }}" rel="prev">‹ ก่อนหน้า</a>
+    {% else %}<span class="disabled">‹ ก่อนหน้า</span>{% endif %}
+
+    {% for n in range(1, pages + 1) %}
+      {% if n == 1 or n == pages or (n - page) | abs <= 2 %}
+        {% if n == page %}<span class="current" aria-current="page">{{ n }}</span>
+        {% else %}<a href="{{ page_url(n) }}" hx-get="{{ page_url(n) }}">{{ n }}</a>{% endif %}
+      {% elif (n - page) | abs == 3 %}<span class="gap">…</span>{% endif %}
+    {% endfor %}
+
+    {% if page < pages %}
+      <a href="{{ page_url(page + 1) }}" hx-get="{{ page_url(page + 1) }}" rel="next">ถัดไป ›</a>
+    {% else %}<span class="disabled">ถัดไป ›</span>{% endif %}
+  </nav>
+  {% endif %}
+</section>

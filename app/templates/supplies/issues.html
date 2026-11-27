@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}ใบเบิกวัสดุ{% endblock %}
+{% block content %}
+<div class="page-head page-head-row">
+  <div><h1>วัสดุสิ้นเปลือง</h1><p class="muted">ใบเบิก (ล่าสุดก่อน แสดงไม่เกิน 200 ใบ · Excel มีครบทุกใบตามตัวกรอง แยกเป็นบรรทัดวัสดุ)</p></div>
+  {% if user and user.can_edit %}<div class="head-actions"><a class="btn" href="/supplies/issue">บันทึกเบิกจ่าย</a></div>{% endif %}
+</div>
+{% include "supplies/_tabs.html" %}
+{# กรองทันทีเมื่อเปลี่ยนเดือน/ฝ่าย (static/js/autofilter.js) แทนที่เฉพาะ #issue-results · ปิด JavaScript ใช้ปุ่มใน noscript #}
+<form id="issue-filters" class="filters" method="get" action="/supplies/issues" role="search" data-autofilter
+      hx-get="/supplies/issues" hx-trigger="krupan:filter" hx-target="#issue-results" hx-select="#issue-results"
+      hx-swap="outerHTML" hx-indicator="#issue-results" hx-sync="this:replace">
+  <div class="field"><label for="month">เดือน</label><input id="month" type="month" name="month" value="{{ month }}"></div>
+  <div class="field">
+    <label for="department">ฝ่าย</label>
+    <select id="department" name="department">
+      <option value="">ทุกฝ่าย</option>
+      {% for d in departments %}<option value="{{ d.id }}" {% if department == d.id %}selected{% endif %}>{{ d.name }}</option>{% endfor %}
+    </select>
+  </div>
+  <noscript><button type="submit" class="btn btn-secondary">แสดง</button></noscript>
+</form>
+<div id="issue-results" class="results">
+{% set filtered = month or department %}
+<div class="results-meta">
+  <p class="count">{% if filtered %}ตรงกับตัวกรอง {{ rows | length }} ใบ{% else %}{{ rows | length }} ใบ{% endif %}</p>
+  <span class="results-links">
+    {% if filtered %}<a class="clear" href="/supplies/issues" data-filter-clear="#issue-filters">ล้างตัวกรอง</a>{% endif %}
+    {% set xlsx_url = "/supplies/issues.xlsx" %}{% include "supplies/_xlsx_link.html" with context %}
+  </span>
+</div>
+{% if rows %}
+<div class="table-wrap">
+  <table class="assets supply-table stack-table">
+    <thead><tr><th scope="col">ใบเบิก</th><th scope="col">วันที่เบิก</th><th scope="col">ฝ่าย</th><th scope="col">ผู้เบิก</th>
+      <th scope="col">เลขที่ใบเบิก</th><th scope="col" class="num">รายการ</th><th scope="col">สถานะ</th></tr></thead>
+    <tbody>
+      {% for r in rows %}
+      <tr {% if r.cancelled_at %}class="inactive"{% endif %}>
+        <td class="stack-main nowrap"><a href="/supplies/issues/{{ r.id }}">#{{ r.id }}</a></td>
+        <td class="stack-inline nowrap" data-label="วันที่เบิก">{{ r.issue_date | thai_date }}</td>
+        <td class="stack-inline" data-label="ฝ่าย">{{ r.department }}</td>
+        <td data-label="ผู้เบิก">{{ r.requester_name }}</td>
+        <td data-label="เลขที่ใบเบิก">{{ r.doc_no or "" }}</td>
+        <td class="num stack-inline" data-label="รายการ">{{ r.n_lines }}</td>
+        <td class="stack-inline">{% if r.cancelled_at %}<span class="badge badge-muted">ยกเลิกแล้ว</span>{% elif r.n_short %}<span class="badge badge-warn">จ่ายไม่ครบ {{ r.n_short }}</span>{% else %}<span class="badge badge-ok">จ่ายแล้ว</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty"><p>{% if filtered %}ไม่มีใบเบิกตามตัวกรองนี้{% else %}ยังไม่มีใบเบิก{% endif %}</p></div>
+{% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,8 @@
+{# แถบของ admin ทุกหน้า: แดง = สำรองไม่สำเร็จเกิน 2 วัน, ส้ม = ไม่มีสำเนานอกเครื่องเกิน 30 วัน,
+   เขียว = คัดลอกลงแฟลชไดรฟ์เสร็จ ถอดออกได้ #}
+{% for w in backup_warnings or [] %}
+<div class="backup-warning backup-warning-{{ w.level }}" role="{{ 'status' if w.level == 'ok' else 'alert' }}">
+  <strong>{{ w.message }}</strong>
+  {% if request.url.path != "/settings/backup" %}<a href="/settings/backup">ไปหน้าสำรองข้อมูล ›</a>{% endif %}
+</div>
+{% endfor %}

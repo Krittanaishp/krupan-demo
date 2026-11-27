@@ -1,0 +1,11 @@
+{# ตอบกลับปุ่ม "ตรวจแล้ว" (htmx): แทนแถวด้วยแถบ "ตรวจแล้ว · ยกเลิก" ที่หายไปเองเมื่อครบเวลา
+   (ถ้าไม่มีอะไรเปลี่ยน เช่นมีคนกดไปก่อนแล้ว แถวนั้นหายไปเลย) ส่วนตัวเลขแต่ละกลุ่มอัปเดตแบบ out-of-band #}
+{% if undo %}
+<tr class="undo-row" data-expires-in="{{ undo_seconds * 1000 }}">
+  <td colspan="6">
+    <div class="undo-bar" role="status">{% include "review/_undo_bar.html" %}</div>
+  </td>
+</tr>
+{% endif %}
+{% include "review/_groups.html" %}
+<p id="review-total" class="muted" hx-swap-oob="true">{% include "review/_total.html" %}</p>

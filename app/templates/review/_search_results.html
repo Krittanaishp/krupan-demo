@@ -1,0 +1,6 @@
+{# ตอบกลับการพิมพ์ค้นหา (htmx): ผลลัพธ์ + out-of-band: แท็บกลุ่ม หัวกลุ่ม จำนวนรวม ลิงก์ export #}
+{% include "review/_rows.html" %}
+{% include "review/_groups.html" %}
+{% include "review/_title.html" %}
+{% include "review/_export.html" %}
+<p id="review-total" class="muted" hx-swap-oob="true">{% include "review/_total.html" %}</p>

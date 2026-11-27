@@ -1,0 +1,9 @@
+{# แถบเตือน admin ทุกหน้า: BASE_URL (ที่อยู่ที่ฝังใน QR) ไม่ตรงกับ IP ของเครื่อง #}
+{% if net_warning and request.url.path != "/settings/network" %}
+<div class="net-warning" role="alert">
+  <strong>{{ net_warning.message }}</strong>
+  <span>BASE_URL = <code>{{ net_warning.base_url or "(ยังไม่ได้ตั้ง)" }}</code> · IP ของเครื่องตอนนี้ = {% for ip in net_warning.ips %}<code>{{ ip }}</code>{% if not loop.last %}, {% endif %}{% else %}ตรวจไม่พบ{% endfor %}
+    · QR ที่พิมพ์ไปแล้วอาจใช้ไม่ได้</span>
+  <a href="/settings/network">วิธีแก้ ›</a>
+</div>
+{% endif %}

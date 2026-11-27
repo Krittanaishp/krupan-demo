@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}ใบรับ #{{ r.id }}{% endblock %}
+{% block content %}
+<a class="back" href="/supplies/receipts">← ใบรับทั้งหมด</a>
+<div class="detail-head">
+  <div>
+    <p class="detail-reg">ใบรับวัสดุ #{{ r.id }}{% if r.copied_from_id %} · คัดลอกจาก <a href="/supplies/receipts/{{ r.copied_from_id }}">#{{ r.copied_from_id }}</a>{% endif %}</p>
+    <h1>รับจาก {{ r.source }}</h1>
+  </div>
+  <div class="head-actions">
+    {% if r.cancelled_at %}<span class="badge badge-muted badge-lg">ยกเลิกแล้ว</span>{% else %}<span class="badge badge-ok badge-lg">รับแล้ว</span>{% endif %}
+    {% if user and user.can_edit %}
+      {% if saved %}<a class="btn" href="/supplies/receive">บันทึกรับเข้าใบถัดไป</a>{% endif %}
+      {% if r.cancelled_at %}<a class="btn btn-secondary" href="/supplies/receive?copy={{ r.id }}">คัดลอกเป็นใบใหม่</a>{% endif %}
+    {% endif %}
+  </div>
+</div>
+
+{% if r.cancelled_at %}
+<div class="alert-warn">ยกเลิกเมื่อ {{ r.cancelled_at | thai_datetime }} โดย {{ r.cancelled_name or r.cancelled_user }} · เหตุผล: {{ r.cancel_reason }}
+  · ยอดที่รับไว้ถูกกลับออกแล้ว{% if copies %} · บันทึกใหม่เป็น {% for c in copies %}<a href="/supplies/receipts/{{ c.id }}">#{{ c.id }}</a>{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}</div>
+{% endif %}
+
+<section class="card">
+  <dl>
+    <dt>วันที่รับ</dt><dd>{{ r.received_date | thai_date }}</dd>
+    <dt>เลขที่เอกสาร</dt><dd>{{ r.doc_no or "—" }}</dd>
+    {% if r.note %}<dt>หมายเหตุ</dt><dd>{{ r.note }}</dd>{% endif %}
+    <dt>บันทึกโดย</dt><dd>{{ r.created_name or r.created_user }} · {{ r.created_at | thai_datetime }}</dd>
+  </dl>
+</section>
+
+<div class="table-wrap doc-lines">
+  <table class="assets supply-table stack-table">
+    <thead><tr><th scope="col">วัสดุ</th><th scope="col">หมวด</th><th scope="col" class="num">จำนวนที่รับ</th><th scope="col" class="num">คิดเป็นหน่วยหลัก</th></tr></thead>
+    <tbody>
+      {% for ln in lines %}
+      <tr>
+        <td class="stack-main name"><a href="/supplies/items/{{ ln.item_id }}">{{ ln.name }}</a></td>
+        <td data-label="หมวด">{{ ln.category }}</td>
+        <td class="num stack-inline" data-label="จำนวนที่รับ">{{ "{:,}".format(ln.unit_qty) }} {{ ln.unit_name }}</td>
+        <td class="num stack-inline" data-label="คิดเป็น">{{ "{:,}".format(ln.qty) }} {{ ln.base_unit }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if user and user.can_edit and not r.cancelled_at %}
+<details class="card cancel-box">
+  <summary>ยกเลิกใบรับนี้ (บันทึกผิด)</summary>
+  <form method="post" action="/supplies/receipts/{{ r.id }}/cancel" class="edit-form">
+    {{ csrf_field }}
+    <p class="hint">ยอดที่รับจากใบนี้จะถูกกลับออก ใบเดิมยังเก็บไว้พร้อมเหตุผล · ถ้าของจากใบนี้ถูกจ่ายออกไปแล้วจนยอดจะติดลบ ระบบจะไม่ให้ยกเลิก
+      · ยกเลิกแล้วกด “คัดลอกเป็นใบใหม่” เพื่อบันทึกใหม่โดยไม่ต้องกรอกทั้งหมด</p>
+    <div class="field"><label for="reason">เหตุผลที่ยกเลิก</label><input id="reason" name="reason" maxlength="500" required></div>
+    <div><button type="submit" class="btn btn-danger">ยืนยันยกเลิกใบรับ #{{ r.id }}</button></div>
+  </form>
+</details>
+{% endif %}
+{% endblock %}

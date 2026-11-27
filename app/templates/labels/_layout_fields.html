@@ -1,0 +1,11 @@
+{# โหลดเสร็จ (รวมหลังเปลี่ยน preset) ให้สรุปจำนวนดวงคำนวณใหม่ตามค่าในช่อง #}
+<div id="layout-fields" class="layout-grid" hx-get="/labels/summary" hx-trigger="load" hx-include="#label-form"
+     hx-target="#label-summary">
+  {% for name, label in field_labels.items() %}
+  <div class="field">
+    <label for="lf-{{ name }}">{{ label }}</label>
+    <input id="lf-{{ name }}" name="{{ name }}" value="{{ '%g' % form_layout[name] if form_layout[name] is number else form_layout[name] }}"
+           inputmode="decimal" class="js-live" {% if layout_errors and layout_errors.get(name) %}aria-invalid="true"{% endif %}>
+  </div>
+  {% endfor %}
+</div>

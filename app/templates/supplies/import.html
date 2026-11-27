@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}นำเข้าวัสดุจาก Excel{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>วัสดุสิ้นเปลือง</h1>
+  <p class="muted">นำเข้ารายการวัสดุและยอดยกมาครั้งแรก · รับเฉพาะไฟล์ตามแบบฟอร์มของระบบ · ระบบแสดงตัวอย่างให้ตรวจก่อนบันทึกทุกครั้ง</p>
+</div>
+{% include "supplies/_tabs.html" %}
+{% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
+
+<div class="detail-grid">
+  <section class="card">
+    <h2>1. ดาวน์โหลดแบบฟอร์ม</h2>
+    <p><a class="btn btn-secondary" href="/supplies/import/template.xlsx">ดาวน์โหลดแบบฟอร์มนำเข้าวัสดุ.xlsx</a></p>
+    <p class="hint">กรอกในชีต “รายการวัสดุ” 1 แถว = 1 รายการ ห้ามเปลี่ยนชื่อชีตหรือหัวตาราง คอลัมน์:
+      {{ columns | join(" · ") }} (คำอธิบายและตัวอย่างอยู่ในชีต “คำอธิบาย”) · ไม่มีช่องราคา</p>
+  </section>
+  <section class="card">
+    <h2>2. อัปโหลดไฟล์ที่กรอกแล้ว</h2>
+    <form method="post" action="/supplies/import/preview" enctype="multipart/form-data" class="edit-form">
+      {{ csrf_field }}
+      <div class="field">
+        <label for="file">ไฟล์ .xlsx (ไม่เกิน {{ max_mb }} MB)</label>
+        <input id="file" type="file" name="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
+      </div>
+      <div class="field">
+        <label for="opening_date">วันที่ของยอดยกมา (วันที่นับของจริง)</label>
+        <input id="opening_date" type="date" name="opening_date" value="{{ today }}" max="{{ today }}" required>
+      </div>
+      <div><button type="submit" class="btn">ตรวจไฟล์ (ยังไม่บันทึก)</button></div>
+    </form>
+  </section>
+</div>
+
+<section class="stock-card">
+  <h2>ประวัติการนำเข้า</h2>
+  {% if batches %}
+  <div class="table-wrap">
+    <table class="assets supply-table stack-table">
+      <thead><tr><th scope="col">ชุด</th><th scope="col">ไฟล์</th><th scope="col">วันที่ยอดยกมา</th><th scope="col">ผล</th>
+        <th scope="col">นำเข้าโดย</th><th scope="col">สถานะ</th></tr></thead>
+      <tbody>
+        {% for b in batches %}{% set s = (b.summary | from_json) if b.summary else {} %}
+        <tr {% if b.undone_at %}class="inactive"{% endif %}>
+          <td class="stack-main nowrap">#{{ b.id }}</td>
+          <td data-label="ไฟล์">{{ b.file_name }}</td>
+          <td class="stack-inline nowrap" data-label="วันที่ยอดยกมา">{{ b.opening_date | thai_date }}</td>
+          <td data-label="ผล">ใหม่ {{ s.new_items or 0 }} · แก้ {{ s.updated_items or 0 }} · ยอดยกมา {{ s.opening_rows or 0 }}
+            {% if s.skipped_dup or s.skipped_bad %}<div class="muted small">ไม่ได้นำเข้า: ชื่อซ้ำ {{ s.skipped_dup }} · อ่านไม่ได้ {{ s.skipped_bad }}</div>{% endif %}</td>
+          <td data-label="นำเข้าโดย">{{ b.display_name or b.username }} · {{ b.created_at | thai_datetime }}</td>
+          <td class="actions">
+            {% if b.undone_at %}<span class="badge badge-muted">ยกเลิกแล้ว</span> <span class="muted small">{{ b.undo_reason }}</span>
+            {% else %}
+            <details class="undo-import">
+              <summary class="btn btn-small btn-secondary">ยกเลิกทั้งชุด</summary>
+              <form method="post" action="/supplies/import/{{ b.id }}/undo" class="edit-form">
+                {{ csrf_field }}
+                <p class="hint">กลับยอดยกมา ปิดใช้งานรายการที่ชุดนี้เพิ่ม และคืนค่าช่องที่ชุดนี้แก้ (ทำได้ถ้ายังไม่มีรับ/จ่ายของรายการในชุดนี้หลังนำเข้า)</p>
+                <label class="sr-only" for="undo-{{ b.id }}">เหตุผล</label>
+                <input id="undo-{{ b.id }}" name="reason" maxlength="500" required placeholder="เหตุผลที่ยกเลิก">
+                <button type="submit" class="btn btn-small btn-danger">ยืนยันยกเลิกชุด #{{ b.id }}</button>
+              </form>
+            </details>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty"><p>ยังไม่เคยนำเข้า</p></div>
+  {% endif %}
+</section>
+{% endblock %}

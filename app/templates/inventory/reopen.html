@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}เปิดรอบตรวจสอบพัสดุประจำปี {{ check.fiscal_year }} กลับ{% endblock %}
+{% block content %}
+<p class="back"><a href="/inventory/{{ check.id }}">‹ ตรวจสอบพัสดุประจำปี {{ check.fiscal_year }}</a></p>
+<div class="page-head">
+  <h1>เปิดรอบตรวจสอบพัสดุประจำปีงบประมาณ {{ check.fiscal_year }} กลับ</h1>
+  <p class="muted">ปิดเมื่อ {{ check.closed_at | thai_date }} · เปิดกลับได้ถึง {{ deadline.isoformat() | thai_date }} ({{ days }} วันหลังปิด) เฉพาะ admin</p>
+</div>
+
+{% if not can_reopen %}
+<p class="form-error" role="alert">เลย {{ days }} วันหลังปิดรอบแล้ว เปิดกลับไม่ได้ ถ้าจำเป็นต้องกู้ฐานข้อมูลจากไฟล์สำรองใน backups\ ที่ระบบทำไว้ก่อนปิดรอบ</p>
+{% else %}
+<div class="card">
+  <p>เมื่อเปิดกลับ:</p>
+  <ul>
+    <li>{{ "{:,}".format(n_close) }} ชิ้นที่ระบบบันทึกเป็น “ไม่พบ” ตอนปิดรอบ (เพราะไม่ได้ตรวจ) จะกลับเป็น “ยังไม่ตรวจ”</li>
+    <li>ผลที่ตรวจไว้แล้ว (QR และใบรายการ) ยังอยู่เหมือนเดิม</li>
+    <li>ข้อเสนอที่กดยืนยันไปแล้ว {{ applied | length }} รายการ <strong>ไม่ถูกย้อนกลับ</strong> ระบบจะแสดงรายการไว้ในหน้ารอบให้ตัดสินใจเอง</li>
+  </ul>
+</div>
+<form method="post" action="/inventory/{{ check.id }}/reopen" class="card form">
+  {{ csrf_field }}
+  <div class="field">
+    <label for="reopen-reason">เหตุผลที่ต้องเปิดรอบกลับ (บันทึกในประวัติ)</label>
+    <textarea id="reopen-reason" name="reason" rows="3" maxlength="500" required placeholder="เช่น ปิดรอบก่อนกรอกผลห้องกองร้อย อส. ครบ"></textarea>
+  </div>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-danger">เปิดรอบกลับ</button>
+    <a href="/inventory/{{ check.id }}">ยกเลิก</a>
+  </div>
+</form>
+{% endif %}
+{% endblock %}

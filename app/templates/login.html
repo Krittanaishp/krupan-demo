@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}เข้าสู่ระบบ{% endblock %}
+{% block content %}
+<div class="narrow">
+  <h1>เข้าสู่ระบบ</h1>
+  <p class="muted">ทะเบียนครุภัณฑ์เปิดดูได้โดยไม่ต้องเข้าสู่ระบบ ส่วนระบบวัสดุและการแก้ไขข้อมูลต้องเข้าสู่ระบบ (บัญชี demo อยู่ใน README)</p>
+
+  <form method="post" action="/login" class="card form">
+    {% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
+    {{ csrf_field }}
+    <input type="hidden" name="next" value="{{ next }}">
+    <div class="field">
+      <label for="username">ชื่อผู้ใช้</label>
+      <input id="username" name="username" value="{{ username }}" autocomplete="username" required autofocus
+             autocapitalize="none" spellcheck="false">
+    </div>
+    <div class="field">
+      <label for="password">รหัสผ่าน</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+    </div>
+    <button type="submit" class="btn">เข้าสู่ระบบ</button>
+  </form>
+</div>
+{% endblock %}

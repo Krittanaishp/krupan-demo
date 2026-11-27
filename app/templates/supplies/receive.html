@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% from "_combobox.html" import combobox %}
+{% block title %}บันทึกรับเข้า{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>วัสดุสิ้นเปลือง</h1>
+  <p class="muted">รับเป็นหน่วยใหญ่ได้ (เช่น กล่อง) ระบบแปลงเป็นหน่วยหลักให้ · บันทึกแล้วแก้ไม่ได้ ถ้าผิดให้ยกเลิกแล้วบันทึกใหม่</p>
+</div>
+{% include "supplies/_tabs.html" %}
+{% include "supplies/_item_datalist.html" %}
+<datalist id="supply-sources">{% for s in sources %}<option value="{{ s }}">{% endfor %}</datalist>
+
+<form method="post" action="/supplies/receive" class="card edit-form supply-doc" data-supply-form="receive" novalidate>
+  {{ csrf_field }}
+  <h2>บันทึกรับเข้า{% if copied_from %} <span class="muted small">(คัดลอกจากใบรับ #{{ copied_from }} ที่ยกเลิก)</span>{% endif %}</h2>
+  {% if copied_from %}<input type="hidden" name="copied_from" value="{{ copied_from }}">{% endif %}
+  {% if errors %}
+  <div class="form-error" role="alert"><p>ยังไม่ได้บันทึก:</p><ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul></div>
+  {% endif %}
+  <div class="form-grid">
+    <div class="field">
+      <label for="received_date">วันที่รับ</label>
+      <input id="received_date" type="date" name="received_date" value="{{ form.received_date or today }}" max="{{ today }}" required>
+    </div>
+    <div class="field span-2">
+      <label for="source">แหล่งที่ได้</label>
+      <input id="source" name="source" value="{{ form.source or '' }}" list="supply-sources" maxlength="200" required
+             placeholder="เช่น จัดซื้อ ร้าน… / ได้รับจากจังหวัด" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="doc_no">เลขที่เอกสาร <span class="muted">(ไม่บังคับ)</span></label>
+      <input id="doc_no" name="doc_no" value="{{ form.doc_no or '' }}" maxlength="100" autocomplete="off">
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="assets supply-lines stack-table">
+      <thead>
+        <tr><th scope="col" class="line-no">#</th><th scope="col">วัสดุ</th><th scope="col" class="w-qty">จำนวน</th>
+          <th scope="col" class="w-unit">หน่วย</th><th scope="col">คิดเป็นหน่วยหลัก</th></tr>
+      </thead>
+      <tbody data-lines data-max="{{ max_lines }}">
+        {% for i in range(1, n_rows + 1) %}{% set r = rows[i - 1] if i <= rows|length else {} %}
+        <tr data-line>
+          <td class="line-no stack-inline">{{ i }}</td>
+          <td data-label="วัสดุ"><label class="sr-only" for="item_{{ i }}">วัสดุบรรทัด {{ i }}</label>
+            {{ combobox("item_" ~ i, "item_" ~ i, r.item, "supply-options", placeholder="พิมพ์ค้นหาวัสดุ", unique=true,
+                        error_text="เลือกวัสดุจากรายการ", empty_text="ไม่พบวัสดุ",
+                        all_text="ดูวัสดุทั้งหมด", attrs="data-item") }}</td>
+          <td data-label="จำนวน" class="w-qty"><label class="sr-only" for="qty_{{ i }}">จำนวนบรรทัด {{ i }}</label>
+            <input id="qty_{{ i }}" name="qty_{{ i }}" value="{{ r.qty or '' }}" inputmode="numeric" data-qty autocomplete="off"></td>
+          <td data-label="หน่วย" class="w-unit"><label class="sr-only" for="unit_{{ i }}">หน่วยบรรทัด {{ i }}</label>
+            <select id="unit_{{ i }}" name="unit_{{ i }}" data-unit data-selected="{{ r.unit or 'base' }}">
+              <option value="base">หน่วยหลัก</option>
+            </select></td>
+          <td data-label="คิดเป็นหน่วยหลัก" class="muted" data-convert></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="hint">กด Enter เพื่อไปช่องถัดไป (บรรทัดใหม่เพิ่มให้เอง) · Ctrl+Enter = บันทึก · บรรทัดว่างไม่ถูกบันทึก</p>
+
+  <div class="field">
+    <label for="note">หมายเหตุ <span class="muted">(ไม่บังคับ)</span></label>
+    <input id="note" name="note" value="{{ form.note or '' }}" maxlength="500">
+  </div>
+  <div class="form-actions">
+    <button type="submit" class="btn">บันทึกรับเข้า</button>
+    <a href="/supplies/receipts">ยกเลิก</a>
+  </div>
+</form>
+<script src="{{ static_url('js/supplies.js') }}" defer></script>
+{% endblock %}

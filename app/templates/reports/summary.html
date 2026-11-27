@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}สรุปครุภัณฑ์{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{{ static_url('css/report-fonts.css') }}">
+<p class="back"><a href="/reports">‹ รายงาน</a></p>
+{% include "_font_check.html" %}
+{# ตอนพิมพ์ใช้ฟอนต์รายงาน (TH SarabunIT๙) หน้าจอยังเป็น Sarabun #}
+<div class="report-print">
+<div class="page-head page-head-row">
+  <div>
+    <h1>สรุปครุภัณฑ์</h1>
+    <p class="muted" id="summary-sub">{{ "รวม" if include_disposed else "ไม่รวม" }}รายการที่จำหน่ายแล้ว · มูลค่ารวมเฉพาะชิ้นที่ทราบราคา ชิ้นที่ไม่ทราบราคานับแยกไว้ ไม่ได้นับเป็น 0 บาท</p>
+  </div>
+  <div class="head-actions">
+    <a id="summary-xlsx" class="btn btn-secondary" href="/reports/summary.xlsx{{ '?' + query if query else '' }}" download>ดาวน์โหลด Excel</a>
+    <button type="button" class="btn btn-secondary" data-print>พิมพ์</button>
+  </div>
+</div>
+
+{# ตัวกรองอัตโนมัติ (static/js/autofilter.js): แทนที่เฉพาะตัวเลขสรุป + คำอธิบายและลิงก์ Excel ด้านบน (hx-select-oob) #}
+<form id="summary-filters" class="filters summary-filters" method="get" action="/reports/summary" role="search" data-autofilter
+      hx-get="/reports/summary" hx-trigger="krupan:filter" hx-target="#summary-results" hx-select="#summary-results"
+      hx-select-oob="#summary-sub,#summary-xlsx" hx-swap="outerHTML" hx-indicator="#summary-results" hx-sync="this:replace">
+  {% for key, label, opts, all_label, current in (("building", "อาคาร/พื้นที่", buildings, "ทุกอาคาร", building),
+                                                  ("dept", "ฝ่ายที่ดูแล", departments, "ทุกฝ่าย", dept)) %}
+  <div class="field">
+    <label for="sum-{{ key }}">{{ label }}</label>
+    <select id="sum-{{ key }}" name="{{ key }}">
+      <option value="">{{ all_label }}</option>
+      {% for b in opts %}<option value="{{ b.id }}" {% if current == b.id | string %}selected{% endif %}>{{ b.name }}{% if not b.active %} · ปิดใช้งาน{% endif %}</option>{% endfor %}
+      <option value="none" {% if current == "none" %}selected{% endif %}>ห้องที่ยังไม่ระบุ / ยังไม่จัดเข้าห้อง</option>
+    </select>
+  </div>
+  {% endfor %}
+  <label class="check"><input type="checkbox" name="disposed" value="1" {% if include_disposed %}checked{% endif %}><span>รวมที่จำหน่ายแล้ว</span></label>
+  <noscript><button type="submit" class="btn btn-secondary">แสดง</button></noscript>
+</form>
+<div id="summary-results" class="results">
+{% if n_duplicates %}<p class="hint">ไม่นับรายการซ้ำ {{ n_duplicates }} รายการ (ดูได้ที่ทะเบียนครุภัณฑ์ ตัวกรองสถานะ “รายการซ้ำ”)</p>{% endif %}
+
+<p class="summary-big">ทั้งหมด {{ "{:,}".format(total.n) }} ชิ้น · มูลค่า {{ "{:,.2f}".format(total.value) }} บาท
+  {% if total.unknown %}<span class="muted">· ไม่ทราบมูลค่า {{ "{:,}".format(total.unknown) }} รายการ</span>{% endif %}</p>
+
+<div class="summary-tables">
+  {% for title, rows in tables %}
+  <section class="card">
+    <h2>{{ title }}</h2>
+    <div class="table-wrap">
+      <table class="assets stack-table">
+        <thead><tr><th scope="col">{{ title[6:] }}</th><th scope="col" class="num">จำนวน</th><th scope="col" class="num">มูลค่า (บาท)</th>
+          <th scope="col">ไม่ทราบมูลค่า</th></tr></thead>
+        <tbody>
+          {% for r in rows %}
+          <tr><td class="stack-main">{{ r.label }}</td><td class="num stack-inline" data-label="จำนวน">{{ "{:,}".format(r.n) }}</td><td class="num stack-inline" data-label="มูลค่า (บาท)">{{ "{:,.2f}".format(r.value) }}</td>
+            <td class="stack-inline{% if not r.unknown %} stack-hide{% endif %}">{% if r.unknown %}ไม่ทราบมูลค่า {{ "{:,}".format(r.unknown) }} รายการ{% else %}<span class="muted">-</span>{% endif %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endfor %}
+</div>
+</div>
+</div>
+{% endblock %}

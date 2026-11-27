@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% from "_combobox.html" import combobox %}
+{% block title %}บันทึกเบิกจ่าย{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>วัสดุสิ้นเปลือง</h1>
+  <p class="muted">เสมียนตราบันทึกแทนฝ่ายที่เบิก · ใบเบิกอนุมัติบนกระดาษแล้ว บันทึกครั้งเดียวจ่ายของเลย · บันทึกแล้วแก้ไม่ได้ ถ้าผิดให้ยกเลิกแล้วบันทึกใหม่</p>
+</div>
+{% include "supplies/_tabs.html" %}
+{% include "supplies/_item_datalist.html" %}
+<script type="application/json" id="requester-data">{{ requesters_json | safe }}</script>
+<datalist id="requester-names"></datalist>
+
+{% if not departments %}
+<div class="alert-warn">ยังไม่มีฝ่ายที่เบิกวัสดุได้ ผู้ดูแลระบบเปิดได้ที่ ตั้งค่า &gt; วัสดุ</div>
+{% endif %}
+{% if not approvers %}
+<div class="alert-warn">ยังไม่มีรายชื่อเจ้าหน้าที่ให้เลือกเป็นผู้อนุมัติ เพิ่มได้ที่ <a href="/places/staff">ห้องและผู้รับผิดชอบ &gt; ผู้รับผิดชอบ</a></div>
+{% endif %}
+
+<form method="post" action="/supplies/issue" class="card edit-form supply-doc" data-supply-form="issue" novalidate>
+  {{ csrf_field }}
+  <h2>บันทึกใบเบิก{% if copied_from %} <span class="muted small">(คัดลอกจากใบเบิก #{{ copied_from }} ที่ยกเลิก)</span>{% endif %}</h2>
+  {% if copied_from %}<input type="hidden" name="copied_from" value="{{ copied_from }}">{% endif %}
+  {% if errors %}
+  <div class="form-error" role="alert"><p>ยังไม่ได้บันทึก:</p><ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
+    {% if short %}<ul>{% for ln, avail in short %}<li>{{ ln.name }}: ตอนนี้จ่ายได้ {{ "{:,}".format(avail) }} {{ ln.base_unit }}</li>{% endfor %}</ul>{% endif %}
+  </div>
+  {% endif %}
+
+  <div class="form-grid">
+    <div class="field">
+      <label for="issue_date">วันที่เบิก</label>
+      <input id="issue_date" type="date" name="issue_date" value="{{ form.issue_date or today }}" max="{{ today }}" required>
+    </div>
+    <fieldset class="field span-2 dept-field" data-dept-group>
+      <legend>ฝ่ายที่เบิก <span class="muted">(กดเลข 1–{{ departments | length }} ได้)</span></legend>
+      <div class="seg">
+        {% for d in departments %}
+        <label class="seg-opt"><input type="radio" name="department_id" value="{{ d.id }}" {% if form.department_id|string == d.id|string %}checked{% endif %}
+               {% if loop.first %}required{% endif %}><span><span class="key-hint" aria-hidden="true">{{ loop.index }}</span> {{ d.name }}</span></label>
+        {% endfor %}
+      </div>
+    </fieldset>
+    <div class="field">
+      <label for="requester_name">ผู้เบิก</label>
+      <input id="requester_name" name="requester_name" value="{{ form.requester_name or '' }}" list="requester-names" maxlength="200"
+             required autocomplete="off" placeholder="พิมพ์ชื่อ">
+    </div>
+    <div class="field">
+      <label for="doc_no">เลขที่ใบเบิก <span class="muted">(ไม่บังคับ)</span></label>
+      <input id="doc_no" name="doc_no" value="{{ form.doc_no or '' }}" maxlength="100" autocomplete="off">
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="assets supply-lines stack-table">
+      <thead>
+        <tr><th scope="col" class="line-no">#</th><th scope="col">วัสดุ</th><th scope="col" class="num">คงเหลือ</th>
+          <th scope="col" class="w-qty">จำนวนที่ขอ</th><th scope="col" class="w-qty">จำนวนที่จ่าย</th></tr>
+      </thead>
+      <tbody data-lines data-max="{{ max_lines }}">
+        {% for i in range(1, n_rows + 1) %}{% set r = rows[i - 1] if i <= rows|length else {} %}
+        <tr data-line>
+          <td class="line-no stack-inline">{{ i }}</td>
+          <td data-label="วัสดุ"><label class="sr-only" for="item_{{ i }}">วัสดุบรรทัด {{ i }}</label>
+            {{ combobox("item_" ~ i, "item_" ~ i, r.item, "supply-options", placeholder="พิมพ์ค้นหาวัสดุ", unique=true,
+                        error_text="เลือกวัสดุจากรายการ", empty_text="ไม่พบวัสดุ",
+                        all_text="ดูวัสดุทั้งหมด", attrs="data-item") }}</td>
+          <td class="num stack-inline" data-label="คงเหลือ" data-balance></td>
+          <td data-label="จำนวนที่ขอ" class="w-qty"><label class="sr-only" for="req_{{ i }}">จำนวนที่ขอบรรทัด {{ i }}</label>
+            <input id="req_{{ i }}" name="req_{{ i }}" value="{{ r.req or '' }}" inputmode="numeric" data-req autocomplete="off"></td>
+          <td data-label="จำนวนที่จ่าย" class="w-qty"><label class="sr-only" for="out_{{ i }}">จำนวนที่จ่ายบรรทัด {{ i }}</label>
+            <input id="out_{{ i }}" name="out_{{ i }}" value="{{ r.out or '' }}" inputmode="numeric" data-out autocomplete="off"
+                   placeholder="ว่าง = เท่าที่ขอ"><span class="short-note" data-short hidden>จ่ายได้ไม่ครบ</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="hint">กด Enter เพื่อไปช่องถัดไป (บรรทัดใหม่เพิ่มให้เอง) · Ctrl+Enter = บันทึก · จำนวนที่จ่ายว่างไว้ = จ่ายเท่าที่ขอแต่ไม่เกินยอดคงเหลือ</p>
+
+  <div class="form-grid">
+    <div class="field span-2">
+      <label for="approver_staff_id">ผู้อนุมัติ (ตามใบเบิกที่ลงนามแล้ว)</label>
+      <select id="approver_staff_id" name="approver_staff_id" required>
+        <option value="">เลือกผู้อนุมัติ</option>
+        {% for s in approvers %}<option value="{{ s.id }}" {% if form.approver_staff_id|string == s.id|string %}selected{% endif %}>{{ s.full_name or s.nickname }}{% if s.position %} ({{ s.position }}){% endif %}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="approved_date">วันที่อนุมัติ</label>
+      <input id="approved_date" type="date" name="approved_date" value="{{ form.approved_date or today }}" max="{{ today }}" required>
+    </div>
+    <div class="field">
+      <label for="note">หมายเหตุ <span class="muted">(ไม่บังคับ)</span></label>
+      <input id="note" name="note" value="{{ form.note or '' }}" maxlength="500">
+    </div>
+  </div>
+  <div class="form-actions">
+    <button type="submit" class="btn">บันทึกใบเบิก</button>
+    <a href="/supplies/issues">ยกเลิก</a>
+  </div>
+</form>
+<script src="{{ static_url('js/supplies.js') }}" defer></script>
+{% endblock %}

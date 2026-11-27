@@ -1,0 +1,32 @@
+{# ผลค้นหาของหน้าจัดห้อง: กลุ่มที่เสนอ + ตารางทีละข้อความ (htmx แทนที่ทั้งก้อนเมื่อเปลี่ยนตัวกรอง) #}
+<div id="mapping-results" class="place-results">
+  <div class="results-meta">
+    <p class="count">{% if filtered %}ตรงกับตัวกรอง {{ rows | length }} ข้อความ{% else %}ทั้งหมด {{ rows | length }} ข้อความ{% endif %}</p>
+    {% if filtered %}<a class="clear" href="/places/mapping" data-filter-clear="#map-filters">ล้างตัวกรอง</a>{% endif %}
+  </div>
+
+  {% include "locations/_mapping_groups.html" %}
+
+  {% if rows %}
+  <h3 class="section-title">ทีละข้อความ</h3>
+  <div class="table-wrap">
+    <table class="assets mapping-table stack-table">
+      <thead>
+        <tr>
+          <th scope="col">ข้อความเดิม</th>
+          <th scope="col" class="num">ชิ้น</th>
+          <th scope="col">ตอนนี้</th>
+          <th scope="col">จัดเข้าห้อง</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}{% include "locations/_mapping_row.html" %}{% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% elif filtered %}
+  <div class="empty"><p>ไม่มีข้อความที่ตรงกับตัวกรอง</p></div>
+  {% else %}
+  <div class="empty"><p>จัดครบทุกข้อความแล้ว</p></div>
+  {% endif %}
+</div>

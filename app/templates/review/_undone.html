@@ -1,0 +1,10 @@
+{# ตอบกลับปุ่ม "ยกเลิก" (htmx): คืนแถวเดิม หรือแจ้งว่ายกเลิกไม่ได้ #}
+{% if r %}
+{% include "review/_row.html" %}
+{% else %}
+<tr class="undo-row" data-expires-in="5000">
+  <td colspan="6"><div class="undo-bar undo-error" role="alert">{{ error }}</div></td>
+</tr>
+{% endif %}
+{% include "review/_groups.html" %}
+<p id="review-total" class="muted" hx-swap-oob="true">{% include "review/_total.html" %}</p>

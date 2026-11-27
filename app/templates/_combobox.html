@@ -1,0 +1,15 @@
+{# ช่องค้นหาพร้อมรายการที่ระบบวาดเอง (static/js/combobox.js โหลดใน base.html) ใช้ซ้ำได้ทุกหน้า
+   source = id ของ <script type="application/json"> ที่มีรายการ [{value, name, sub, right, tag, tagKind, dim, group, keys}]
+   unique = ห้ามเลือกค่าเดียวกันซ้ำในช่องอื่นของฟอร์มนี้ที่ใช้ source เดียวกัน · attrs = attribute เพิ่ม (ข้อความคงที่ในเทมเพลตเท่านั้น)
+   ปุ่ม ▼ ด้านขวา = เปิดรายการทั้งหมด (ไม่อยู่ในลำดับ Tab: คีย์บอร์ดใช้ Alt+↓ หรือ ↓ แทน) #}
+{% macro combobox(id, name, value, source, placeholder="", unique=false, error_text="เลือกจากรายการ", empty_text="ไม่พบรายการ",
+                  all_text="ดูทั้งหมด", attrs="") -%}
+<span class="cb-field">
+  <input id="{{ id }}" name="{{ name }}" value="{{ value or '' }}" type="text" role="combobox" aria-autocomplete="list"
+         aria-expanded="false" aria-controls="cb-listbox" autocomplete="off" spellcheck="false" data-combobox="{{ source }}"
+         data-combobox-error="{{ error_text }}" data-combobox-empty="{{ empty_text }}" data-combobox-all="{{ all_text }}"
+         {%- if unique %} data-combobox-unique{% endif %} {% if placeholder %}placeholder="{{ placeholder }}"{% endif %} {{ attrs | safe }}>
+  <button type="button" class="cb-toggle" tabindex="-1" data-combobox-toggle aria-label="{{ all_text }}" title="{{ all_text }}"
+          aria-controls="cb-listbox" aria-expanded="false" aria-pressed="false"><span aria-hidden="true">▼</span></button>
+</span>
+{%- endmacro %}

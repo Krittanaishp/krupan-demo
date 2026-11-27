@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+{% block title %}{{ a.reg_no or a.temp_code }}{% endblock %}
+{% block content %}
+<a class="back" href="{{ back }}">‹ กลับไปหน้ารายการ</a>
+
+<div class="detail-head">
+  <div>
+    <p class="detail-reg">
+      {% if a.reg_no %}{{ a.reg_no }}{% else %}{{ a.temp_code }} <span class="tag">รหัสชั่วคราว</span>{% endif %}
+    </p>
+    <h1>{{ a.name }}</h1>
+  </div>
+  <div class="head-actions">
+    {% if a.duplicate_of_id %}<span class="badge badge-lg badge-muted">รายการซ้ำ</span>
+    {% else %}<span class="badge badge-lg badge-{{ STATUS_CLASS.get(a.status, 'muted') }}">{{ a.status }}</span>{% endif %}
+    {% if user and user.can_edit %}
+      <a class="btn" href="/assets/{{ a.id }}/edit">แก้ไข</a>
+      {% if not disposal and a.status != "จำหน่ายแล้ว" %}<a class="btn btn-secondary" href="/disposals/new?ids={{ a.id }}">บันทึกการจำหน่าย</a>{% endif %}
+    {% elif not user %}
+      <a class="btn btn-secondary" href="/login?next=/assets/{{ a.id }}/edit">เข้าสู่ระบบเพื่อแก้ไข</a>
+    {% endif %}
+  </div>
+</div>
+
+{% if a.needs_review %}
+<div class="review-box" role="note">
+  <p class="review-title">ต้องตรวจสอบ</p>
+  <ul>
+    {% for item in a.needs_review.split(", ") %}<li>{{ item }}</li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+{# รายการซ้ำ: ลิงก์ถึงกันทั้งสองทาง ตั้ง/ยกเลิกได้เฉพาะ admin (ต้องใส่เหตุผล) #}
+<section id="duplicate" class="dup-box">
+  {% if dup_error %}<p class="field-error" role="alert">{{ dup_error }}</p>{% endif %}
+  {% if dup_of %}
+  <div class="notice notice-warn" role="note">
+    <p><strong>รายการซ้ำ</strong> ของ <a href="/assets/{{ dup_of.id }}">{{ dup_of.reg_no or dup_of.temp_code }}</a> {{ dup_of.name }}
+      · ไม่นับในรายงานทะเบียน สรุป และไม่เข้ารอบตรวจสอบพัสดุ (สถานะเดิม: {{ a.status }})</p>
+    <p class="hint">เหตุผล: {{ a.duplicate_reason }}</p>
+  </div>
+  {% if is_admin %}
+  <details class="dup-form">
+    <summary>ยกเลิกสถานะรายการซ้ำ…</summary>
+    <form method="post" action="/assets/{{ a.id }}/duplicate/cancel" class="card edit-form">
+      {{ csrf_field }}
+      <div class="field">
+        <label for="dup-cancel-reason">เหตุผลที่ยกเลิก</label>
+        <input id="dup-cancel-reason" name="reason" required maxlength="500">
+      </div>
+      <div class="form-actions"><button type="submit" class="btn btn-secondary">ยกเลิกสถานะรายการซ้ำ</button></div>
+    </form>
+  </details>
+  {% endif %}
+  {% endif %}
+  {% if dup_children %}
+  <div class="notice" role="note">
+    <p>รายการที่ตั้งว่าซ้ำกับรายการนี้:
+      {% for d in dup_children %}<a href="/assets/{{ d.id }}">{{ d.reg_no or d.temp_code }}</a>{% if not loop.last %}, {% endif %}{% endfor %}
+      (ไม่นับในรายงาน)</p>
+  </div>
+  {% endif %}
+  {% if is_admin and not dup_of and not dup_children and a.status != "จำหน่ายแล้ว" %}
+  {% set hint_code = namespace(v="") %}
+  {% for item in (a.needs_review or "").split(", ") %}{% if item.startswith("ลงทะเบียนซ้ำกับ ") %}{% set hint_code.v = item.split(" ")[1] %}{% endif %}{% endfor %}
+  <details class="dup-form" {% if dup_error %}open{% endif %}>
+    <summary>ตั้งเป็นรายการซ้ำ…</summary>
+    <form method="post" action="/assets/{{ a.id }}/duplicate" class="card edit-form">
+      {{ csrf_field }}
+      <p class="hint">ใช้เมื่อครุภัณฑ์ชิ้นเดียวกันลงทะเบียนไว้ 2 ครั้ง รายการนี้จะไม่นับในรายงานและไม่เข้ารอบตรวจสอบพัสดุ
+        (สถานะเดิมเก็บไว้ ยกเลิกได้) ตั้งที่รายการที่<strong>ไม่ใช้</strong> แล้วใส่เลขของรายการที่ถูกต้อง</p>
+      <div class="field">
+        <label for="dup-target">ซ้ำกับรายการ (เลขทะเบียนหรือรหัสชั่วคราวของรายการที่ถูกต้อง)</label>
+        <input id="dup-target" name="target" required maxlength="60" value="{{ hint_code.v }}" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="dup-reason">เหตุผล</label>
+        <input id="dup-reason" name="reason" required maxlength="500" placeholder="เช่น เจ้าหน้าที่พัสดุยืนยันว่าเลขที่ถูกต้องคือ …">
+      </div>
+      <div class="form-actions"><button type="submit" class="btn btn-secondary">ตั้งเป็นรายการซ้ำ</button></div>
+    </form>
+  </details>
+  {% endif %}
+</section>
+
+<div class="detail-grid">
+  <section class="card">
+    <h2>ข้อมูลครุภัณฑ์</h2>
+    <dl>
+      <dt>เลขทะเบียน</dt><dd>{{ a.reg_no or "ยังไม่มี" }}</dd>
+      <dt>รหัสชั่วคราว</dt><dd>{{ a.temp_code or "—" }}</dd>
+      <dt>ประเภท</dt>
+      <dd>
+        {% if a.type_code %}
+          {{ a.type_code }}{% if a.type_name %} · {{ a.type_name }}{% endif %}
+          {% if a.name_is_draft %}<span class="tag" title="ชื่อประเภทเดาจากชื่อรายการที่พบบ่อยที่สุด ยังไม่ได้ยืนยัน">ชื่อร่าง</span>{% endif %}
+        {% else %}—{% endif %}
+      </dd>
+      <dt>หมวด</dt><dd>{{ a.category_name or "—" }}</dd>
+      <dt>ชื่อรายการ</dt><dd>{{ a.name }}</dd>
+      <dt>รายละเอียด</dt><dd>{{ a.details or "—" }}</dd>
+      <dt>รหัส GFMIS</dt><dd>{{ a.gfmis_code or "—" }}</dd>
+    </dl>
+  </section>
+
+  <section class="card">
+    <h2>การได้มา</h2>
+    <dl>
+      <dt>วันที่ได้มา</dt>
+      <dd>
+        {{ a.acquired_date | thai_date(a.acquired_date_precision) or "ไม่ทราบ" }}
+        {% if a.acquired_date_precision in ("month", "year") %}
+          <span class="muted">(ทราบแค่{{ "เดือนและปี" if a.acquired_date_precision == "month" else "ปี" }})</span>
+        {% endif %}
+      </dd>
+      <dt>วันที่ตามต้นฉบับ</dt><dd>{{ a.acquired_date_raw or "—" }}</dd>
+      <dt>ปีงบประมาณ</dt><dd>{{ a.fiscal_year or "—" }}</dd>
+      <dt>ราคาต่อหน่วย</dt>
+      <dd>{% if a.unit_price is none %}<span class="muted">ไม่ทราบ</span>{% else %}{{ a.unit_price | money }} บาท{% endif %}</dd>
+      <dt>วิธีการได้มา</dt><dd>{{ a.funding_source or "—" }}</dd>
+    </dl>
+  </section>
+
+  <section class="card">
+    <h2>ที่ตั้งและผู้รับผิดชอบ</h2>
+    <dl>
+      <dt>ใช้ประจำที่ (ตามต้นฉบับ)</dt><dd>{{ a.location_text or "—" }}</dd>
+      <dt>ห้อง/หน่วยงานในระบบ</dt><dd>{{ a.location_name or "ยังไม่ได้จัดเข้าห้อง" }}</dd>
+      <dt>ผู้รับผิดชอบ</dt><dd>{{ {"nickname": a.holder_nickname, "full_name": a.holder_full_name} | staff_label or "—" }}</dd>
+      <dt>สถานะ</dt><dd>{{ a.status }}</dd>
+      <dt>หมายเหตุ</dt><dd class="pre-line">{{ a.note or "—" }}</dd>
+    </dl>
+  </section>
+
+  <section class="card">
+    <h2>แหล่งที่มาของข้อมูล</h2>
+    <dl>
+      <dt>ชีตต้นทาง</dt><dd><code>{{ a.source_sheet }}</code></dd>
+      <dt>แถวในต้นฉบับ</dt><dd>{{ a.source_row }}</dd>
+      <dt>บันทึกเข้าระบบ</dt><dd>{{ a.created_at | thai_datetime }}</dd>
+      <dt>แก้ไขล่าสุด</dt><dd>{{ a.updated_at | thai_datetime }}</dd>
+      {% if qr_enabled() %}<dt>สติกเกอร์ QR</dt>
+      <dd>{% if a.label_printed_at %}พิมพ์ล่าสุด {{ a.label_printed_at | thai_datetime }}{% else %}ยังไม่เคยพิมพ์{% endif %}
+        · <a href="/q/{{ (a.reg_no[3:] if a.reg_no and a.reg_no.startswith('ปค.') else (a.reg_no or a.temp_code)) }}">หน้าที่เปิดจาก QR</a></dd>{% endif %}
+    </dl>
+  </section>
+</div>
+
+{% if disposals %}
+<section class="card history" id="disposal">
+  <h2>การจำหน่าย</h2>
+  <ul class="repair-list">
+    {% for d in disposals %}
+    <li {% if d.cancelled_at %}class="cancelled"{% endif %}>
+      <p class="repair-line"><strong>{{ d.disposed_at | thai_date }}</strong> · {{ d.method }} · หนังสืออนุมัติ {{ d.doc_ref }}
+        {% if d.amount is not none %}· ได้เงิน {{ d.amount | money }} บาท{% endif %}
+        {% if d.cancelled_at %}<span class="badge badge-muted">ยกเลิกแล้ว</span>{% endif %}</p>
+      <p class="muted small">บันทึกโดย {{ d.who or "—" }} {{ d.created_at | thai_datetime }}{% if d.note %} · {{ d.note }}{% endif %}
+        {% if d.cancelled_at %}<br>ยกเลิกโดย {{ d.cancelled_who or "—" }} {{ d.cancelled_at | thai_datetime }} · เหตุผล: {{ d.cancel_reason }}{% endif %}</p>
+      {% if not d.cancelled_at and user and user.is_admin %}<a class="btn btn-small btn-danger" href="/disposals/{{ d.id }}/cancel">ยกเลิกการจำหน่าย…</a>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% include "assets/_repairs.html" %}
+
+{% if moves %}
+<section class="card history">
+  <h2>ประวัติการย้ายห้อง / เปลี่ยนผู้รับผิดชอบ</h2>
+  <div class="table-scroll">
+  <table class="changes stack-table">
+    <thead><tr><th scope="col">วันที่</th><th scope="col">เหตุผล</th><th scope="col">ห้อง</th><th scope="col">ผู้รับผิดชอบ</th><th scope="col">หมายเหตุ</th></tr></thead>
+    <tbody>
+      {% for m in moves %}
+      <tr>
+        <td class="nowrap stack-inline">{{ m.moved_at | thai_date }}</td>
+        <td class="nowrap stack-inline">{{ m.reason or "—" }}</td>
+        <td data-label="ห้อง">{% if m.from_location != m.to_location %}<span class="old">{{ m.from_location or "(ไม่ระบุ)" }}</span> → {{ m.to_location or "(ไม่ระบุ)" }}{% else %}{{ m.to_location or "—" }}{% endif %}</td>
+        {% set fh = {"nickname": m.from_nick, "full_name": m.from_full} | staff_label %}
+        {% set th = {"nickname": m.to_nick, "full_name": m.to_full} | staff_label %}
+        <td data-label="ผู้รับผิดชอบ">{% if fh != th %}<span class="old">{{ fh or "(ไม่ระบุ)" }}</span> → {{ th or "(ไม่ระบุ)" }}{% else %}{{ th or "—" }}{% endif %}</td>
+        <td class="muted">{{ m.note or "" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endif %}
+
+<section class="card history">
+  <h2>ประวัติการแก้ไข</h2>
+  {% if history %}
+  <ol class="history-list">
+    {% for h in history %}
+    <li>
+      <p class="history-meta">
+        <strong>{{ ACTION_LABELS.get(h.action, h.action) }}</strong>
+        โดย {{ h.who or "ไม่ทราบผู้ใช้" }} · <span class="muted">{{ h.created_at | thai_datetime }}</span>
+      </p>
+      <table class="changes">
+        <thead><tr><th scope="col">ช่อง</th><th scope="col">ค่าเดิม</th><th scope="col">ค่าใหม่</th></tr></thead>
+        <tbody>
+          {% for label, old, new in audit_changes(h.changes) %}
+          <tr><th scope="row">{{ label }}</th><td class="old">{{ old }}</td><td>{{ new }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  <p class="muted">ยังไม่มีการแก้ไขตั้งแต่นำเข้าข้อมูล</p>
+  {% endif %}
+</section>
+{% endblock %}

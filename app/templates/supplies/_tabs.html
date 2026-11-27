@@ -1,0 +1,18 @@
+{# แท็บของส่วนวัสดุ (tab = balances / low / issue / issues / receive / receipts / monthly / items / import) #}
+<nav class="settings-tabs supply-tabs" aria-label="หัวข้อวัสดุ">
+  <a href="/supplies" {% if tab == "balances" %}aria-current="page"{% endif %}>ยอดคงเหลือ</a>
+  <a href="/supplies/low" {% if tab == "low" %}aria-current="page"{% endif %}>ต่ำกว่าจุดสั่งซื้อ</a>
+  {% if user and user.can_edit %}
+  <a href="/supplies/issue" {% if tab == "issue" %}aria-current="page"{% endif %}>เบิกจ่าย</a>
+  {% endif %}
+  <a href="/supplies/issues" {% if tab == "issues" %}aria-current="page"{% endif %}>ใบเบิก</a>
+  {% if user and user.can_edit %}
+  <a href="/supplies/receive" {% if tab == "receive" %}aria-current="page"{% endif %}>รับเข้า</a>
+  {% endif %}
+  <a href="/supplies/receipts" {% if tab == "receipts" %}aria-current="page"{% endif %}>ใบรับ</a>
+  <a href="/supplies/monthly" {% if tab == "monthly" %}aria-current="page"{% endif %}>สรุปรายเดือน</a>
+  <a href="/supplies/items" {% if tab == "items" %}aria-current="page"{% endif %}>รายการวัสดุ</a>
+  {% if user and user.can_edit %}
+  <a href="/supplies/import" {% if tab == "import" %}aria-current="page"{% endif %}>นำเข้าจาก Excel</a>
+  {% endif %}
+</nav>

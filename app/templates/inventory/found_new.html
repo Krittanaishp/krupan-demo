@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}พบของที่ไม่มีในทะเบียน{% endblock %}
+{% block content %}
+<p class="back"><a href="/inventory/{{ check.id }}">‹ ตรวจสอบพัสดุประจำปี {{ check.fiscal_year }}</a></p>
+<div class="page-head">
+  <h1>พบของที่ไม่มีในทะเบียน</h1>
+  <p class="muted">ระบบจะเพิ่มเป็นครุภัณฑ์รหัสชั่วคราว (TMP) และติดป้าย “{{ flag }}” ไว้ในหน้ารอตรวจสอบ ให้เติมเลขทะเบียนและราคาภายหลัง</p>
+</div>
+<form method="post" action="/inventory/{{ check.id }}/found-new" class="card form narrow">
+  {{ csrf_field }}
+  {% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
+  <div class="field">
+    <label for="fn-name">ชื่อรายการ</label>
+    <input id="fn-name" name="name" value="{{ form.name }}" required maxlength="300" placeholder="เช่น พัดลมตั้งพื้น 16 นิ้ว">
+  </div>
+  <div class="field">
+    <label for="fn-loc">ห้องที่พบ</label>
+    <select id="fn-loc" name="location_id">
+      <option value="">— ยังไม่จัดเข้าห้อง —</option>
+      {% for l in locations %}<option value="{{ l.id }}" {% if form.location_id == l.id | string %}selected{% endif %}>{{ l.name }}</option>{% endfor %}
+    </select>
+  </div>
+  <fieldset class="field">
+    <legend class="label-like">สภาพที่พบ</legend>
+    {% for res in RESULTS %}<label class="check"><input type="radio" name="result" value="{{ res }}" {% if form.result == res %}checked{% endif %}> {{ res }}</label>{% endfor %}
+  </fieldset>
+  <div class="field">
+    <label for="fn-note">หมายเหตุ</label>
+    <textarea id="fn-note" name="note" rows="3" maxlength="1000" placeholder="เช่น ไม่มีสติกเกอร์ ผู้ใช้แจ้งว่าได้รับบริจาค">{{ form.note }}</textarea>
+  </div>
+  <div class="form-actions"><button type="submit" class="btn">เพิ่มเข้าทะเบียน (รหัสชั่วคราว)</button></div>
+</form>
+{% endblock %}

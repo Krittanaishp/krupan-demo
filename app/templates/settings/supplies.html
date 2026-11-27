@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}ตั้งค่าวัสดุ{% endblock %}
+{% block content %}
+{% include "settings/_tabs.html" %}
+<div class="page-head">
+  <h1>วัสดุสิ้นเปลือง</h1>
+  <p class="muted">ผู้อนุมัติที่เติมให้ในหน้าเบิกจ่าย และฝ่ายที่เลือกได้ตอนบันทึกใบเบิก</p>
+</div>
+{% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
+
+<form method="post" action="/settings/supplies" class="card edit-form" novalidate>
+  {{ csrf_field }}
+  <div class="field">
+    <label for="approver">ผู้อนุมัติเริ่มต้น</label>
+    <select id="approver" name="approver">
+      <option value="">ไม่ตั้ง (เลือกเองทุกใบ)</option>
+      {% for s in staff %}<option value="{{ s.id }}" {% if approver == s.id %}selected{% endif %}>{{ s.full_name or s.nickname }}{% if s.position %} ({{ s.position }}){% endif %}</option>{% endfor %}
+    </select>
+    <p class="hint">เลือกจากรายชื่อเจ้าหน้าที่ (<a href="/places/staff">ห้องและผู้รับผิดชอบ &gt; ผู้รับผิดชอบ</a>) เปลี่ยนเป็นคนอื่นในแต่ละใบเบิกได้</p>
+  </div>
+
+  <fieldset class="field">
+    <legend>ฝ่ายที่เบิกวัสดุได้</legend>
+    {% for d in deps %}
+    <label class="check"><input type="checkbox" name="issues" value="{{ d.id }}" {% if d.issues_supplies %}checked{% endif %}>
+      <span>{{ d.name }}{% if not d.active %} <span class="muted">(ปิดใช้งาน)</span>{% endif %}</span></label>
+    {% else %}
+    <p class="muted">ยังไม่มีฝ่าย เพิ่มได้ที่หน้าห้องและผู้รับผิดชอบ (อาคาร/ฝ่าย)</p>
+    {% endfor %}
+    <p class="hint">ชื่อฝ่ายแก้ได้ที่หน้าห้องและผู้รับผิดชอบ · ปิดการเบิกแล้ว ใบเบิกเดิมของฝ่ายนั้นยังอยู่ในรายงาน</p>
+  </fieldset>
+  <div class="form-actions"><button type="submit" class="btn">บันทึก</button></div>
+</form>
+{% endblock %}

@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <title>{{ title }}</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="{{ static_url('css/report-fonts.css') }}">
+  <link rel="stylesheet" href="{{ static_url('css/print-doc.css') }}">
+  {% set L = layout %}{% set m = L.margins_in %}
+  {% set table_pt = L.widths_pt | sum %}
+  <style nonce="{{ csp_nonce(request) }}">
+    /* จัดหน้าแบบชีตหมวดในไฟล์ Excel เดิม (ค่าจาก app/reports.py layout): A4 {{ L.orientation }} สเกล 100%
+       ขอบ{{ L.margin_label }} · หัวรายงาน 2 บรรทัด + หัวตาราง + แถว "ประเภท ..." พิมพ์ซ้ำทุกหน้า (อยู่ใน thead) */
+    /* ขอบกระดาษ = 0 แล้วเว้นขอบบน/ล่างด้วยแถวว่างใน thead/tfoot (พิมพ์ซ้ำทุกหน้า) และจัดตารางกึ่งกลางแนวนอน
+       เพื่อให้ผลเท่ากันไม่ว่าในกล่องพิมพ์ของ Edge จะเลือกระยะขอบ "ไม่มี" หรือ "ค่าเริ่มต้น"
+       ("ไม่มี" ทำให้เบราว์เซอร์ไม่ใช้ margin ของ @page) */
+    @page {
+      size: A4 {{ L.orientation }};
+      margin: 0;
+      @bottom-right { content: none; }
+    }
+    /* หน้าจอแสดงเป็นกระดาษพร้อมขอบ (padding) ตอนพิมพ์ใช้แถวเว้นแทน */
+    @media screen {
+      .doc-page { width: {{ L.page_mm[0] }}mm; min-height: {{ L.page_mm[1] }}mm;
+                  padding: {{ m.top }}in {{ m.right }}in {{ m.bottom }}in {{ m.left }}in; }
+      .register .page-top, .register .page-bottom { display: none; }
+    }
+    .register { break-before: page; page-break-before: always; }
+    .register:first-of-type { break-before: auto; page-break-before: auto; }
+    .register table { width: {{ table_pt | round(1) }}pt; margin: 0 auto;
+                      font-size: {{ L.font_pt }}pt; line-height: {{ L.row_pt }}pt; }
+    .register .page-top th { height: {{ m.top }}in; padding: 0; border: 0; }
+    .register .page-bottom td { height: {{ m.bottom }}in; padding: 0; border: 0; }
+    @media print { .register .signs { padding-bottom: {{ m.bottom }}in; } }
+    .register th, .register td { padding: 0 2pt; font-weight: 400; }
+    /* หัวรายงาน: ไม่หนา จัดกึ่งกลาง บรรทัดที่ 2 มีเส้นล่าง thin */
+    .register thead .t1 th, .register thead .t2 th { border: 0; height: {{ L.row_pt }}pt; padding: 0; vertical-align: bottom; }
+    .register thead .t2 th { border-bottom: 0.75pt solid #000; }
+    /* หัวตาราง: สูง 39.95pt เส้น thin จัดกลางทั้งแนวตั้งและแนวนอน */
+    .register thead .head th { height: {{ L.head_pt }}pt; border: 0.75pt solid #000; text-align: center; vertical-align: middle;
+                               padding: 0; overflow-wrap: normal; white-space: nowrap; }
+    /* แถว "ประเภท ..." อยู่ในคอลัมน์รายการ ตัวหนา (ชีตเดิมพิมพ์ซ้ำทุกหน้าแบบ "ประเภทตู้ (ต่อ)") */
+    .register thead .cat th { height: {{ L.row_pt }}pt; border: 0.75pt solid #000; border-bottom: 0.75pt solid #8a8a8a; }
+    .register thead .cat .cat-name { font-weight: 700; text-align: center; }
+    /* แถวข้อมูล: สูง 20.25pt ต่อบรรทัด เส้น hair คั่นแถว เส้น thin แบ่งคอลัมน์
+       เบราว์เซอร์วาดเส้นบางสุดได้ 1px (0.75pt) ไม่ถึง 0.12pt แบบ Excel จึงใช้สีเทาให้ดูบางกว่าเส้น thin */
+    .register tbody td { height: {{ L.row_pt }}pt; vertical-align: top; overflow-wrap: anywhere;
+                         border-left: 0.75pt solid #000; border-right: 0.75pt solid #000;
+                         border-top: 0.75pt solid #8a8a8a; border-bottom: 0.75pt solid #8a8a8a; }
+    .register tbody td:first-child { padding: 0; }
+    .register tbody tr:last-child td { border-bottom: 0.75pt solid #000; }
+    .register .c { text-align: center; }
+    .register .n { text-align: right; white-space: nowrap; }
+    /* รูปแบบบัญชี: ราคา 0 แสดง "-" ห่างจากขอบขวาประมาณ 2 หลัก (แบบ "-"?? ของ Excel) */
+    .register .n.dash { padding-right: 1.3em; }
+    .register .reg { text-align: center; overflow-wrap: normal; word-break: normal; }
+    .register .reg span { display: block; }
+    .register .details { display: block; }
+    {% for w in L.widths_pt %}col.c{{ loop.index }} { width: {{ w }}pt; }
+    {% endfor %}
+  </style>
+  <script src="{{ static_url('js/doc.js') }}" defer></script>
+</head>
+<body class="doc">
+  <div class="doc-toolbar">
+    <button type="button" class="btn" data-print>พิมพ์</button>
+    <p class="hint">ตั้งค่าการพิมพ์: กระดาษ A4 {{ "แนวนอน" if L.orientation == "landscape" else "แนวตั้ง" }} มาตราส่วน 100% (ห้าม “พอดีกับหน้า”) ระยะขอบ “ไม่มี”
+      ปิดหัวกระดาษและท้ายกระดาษ ·
+      {{ sections | length }} หมวด {{ "{:,}".format(n_items) }} ชิ้น
+      · {{ "รวมรายการเลขต่อเนื่อง" if opts.group else "แยกทีละชิ้น" }} · {{ "เลขไทย" if opts.thai else "เลขอารบิก" }}
+      · {{ "รวม" if opts.disposed else "ไม่รวม" }}รายการที่จำหน่ายแล้ว · ขอบ{{ L.margin_label }}
+      {% if L.margin == "original" %}(ขอบล่างแคบ 4 มม. ถ้าเครื่องพิมพ์ตัดบรรทัดล่างให้เลือก “ปลอดภัยสำหรับเครื่องพิมพ์”){% endif %}</p>
+    {% include "_font_check.html" %}
+  </div>
+  <div class="doc-page">
+    {% for s in sections %}
+    <section class="register" aria-label="หมวด {{ s.name }}">
+      <table>
+        <colgroup>{% for w in L.widths_pt %}<col class="c{{ loop.index }}">{% endfor %}</colgroup>
+        <thead>
+          <tr class="page-top" aria-hidden="true"><th colspan="8"></th></tr>
+          <tr class="t1"><th colspan="8">{{ title }}</th></tr>
+          <tr class="t2"><th colspan="8">{{ line2 }}</th></tr>
+          <tr class="head"><th>ลำดับ</th><th>วัน,เดือน,ปี</th><th>ประเภทครุภัณฑ์ {{ s.name }}</th><th>หมายเลขทะเบียน</th>
+            <th>ราคาต่อหน่วย</th><th>วิธีการได้มา</th><th>ใช้ประจำที่</th><th>หมายเหตุ</th></tr>
+          <tr class="cat"><th></th><th></th><th class="cat-name">ประเภท {{ s.name }}</th><th></th><th></th><th></th><th></th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for e in s.entries %}
+          <tr>
+            <td class="c">{{ e.no }}</td>
+            <td class="c">{{ e.date }}</td>
+            <td>{{ e.name }}{% if e.details %}<span class="details">{{ e.details }}</span>{% endif %}</td>
+            <td class="reg">{% if e.reg_split %}{{ e.reg_split[0] }}<wbr>{{ e.reg_split[1] }}{% else %}{% for line in e.reg_lines %}<span>{{ line }}</span>{% endfor %}{% endif %}</td>
+            <td class="n{% if e.price == '-' %} dash{% endif %}">{{ e.price }}</td>
+            <td class="c">{{ e.funding }}</td>
+            <td class="c">{{ e.place }}</td>
+            <td class="c">{{ e.note }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot><tr class="page-bottom" aria-hidden="true"><td colspan="8"></td></tr></tfoot>
+      </table>
+      {% include "reports/_signs.html" %}
+    </section>
+    {% else %}
+    <p>ไม่มีครุภัณฑ์ตามเงื่อนไขที่เลือก</p>
+    {% endfor %}
+  </div>
+</body>
+</html>

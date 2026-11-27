@@ -1,0 +1,84 @@
+{# กลุ่มข้อความที่น่าจะเป็นห้องเดียวกัน: ระบบเสนอ คนติ๊กเลือกแล้วกดยืนยันเอง (ระบบไม่จัดเอง) #}
+<section class="map-groups" aria-labelledby="map-groups-title">
+  <div class="map-groups-head">
+    <h3 id="map-groups-title" class="section-title">กลุ่มที่น่าจะเป็นห้องเดียวกัน{% if groups %} ({{ groups | length }} กลุ่ม){% endif %}</h3>
+    <a class="btn btn-small btn-secondary" href="{{ export_url }}">Export Excel ทุกกลุ่ม</a>
+  </div>
+  <p class="hint">ระบบเสนอจากข้อความที่คล้ายกัน (ตัดช่องว่าง ตัวย่อ ชื่อคน) และข้อมูลที่ยืนยันแล้วในหน้าตั้งค่า
+    ยังไม่ได้จัดให้ ติ๊กเฉพาะข้อความที่อยู่ห้องเดียวกันจริง แล้วกด “จัดทั้งกลุ่มเข้าห้องนี้”
+    ไม่แน่ใจให้ Export Excel ไปให้เจ้าหน้าที่ยืนยันก่อน</p>
+
+  {% for g in groups %}
+  {% set gid = g.id %}
+  {% set loc_default = g.target_id or NEW %}
+  {% set holder_default = g.holder_id or (NEW if g.holder_hint else "") %}
+  <form id="{{ gid }}" class="card map-group" method="post" action="/places/mapping/group">
+    {{ csrf_field }}
+    <input type="hidden" name="group" value="{{ gid }}">
+    <input type="hidden" name="back" value="{{ back }}">
+    <div class="map-group-title">
+      <strong>{{ g.target_name }}</strong>
+      {% if not g.target_id %}<span class="tag">ห้องใหม่</span>{% endif %}
+      {% if g.kind == "rule" %}<span class="tag tag-ok">ข้อมูลที่ยืนยันแล้ว</span>{% endif %}
+      <span class="muted small">{{ g.texts | length }} ข้อความ · {{ g.n }} ชิ้น · ยังไม่อยู่ห้องนี้ {{ g.n_todo }} ชิ้น</span>
+    </div>
+    {% if g.rule and g.rule.note %}<p class="hint">{{ g.rule.note }}</p>{% endif %}
+
+    <fieldset class="map-group-texts">
+      <legend class="sr-only">ข้อความในกลุ่ม “{{ g.target_name }}”</legend>
+      {% for t in g.texts %}
+      {% set r = t.row %}
+      <label class="map-group-text{% if t.locked %} is-done{% endif %}">
+        <input type="checkbox" name="texts" value="{{ r.text }}" {% if t.checked %}checked{% endif %} {% if t.locked %}disabled{% endif %}>
+        <span class="map-group-body">
+          <span><span class="map-quote">{{ r.text }}</span>
+            <span class="muted">{{ r.n }} ชิ้น{% if r.n_cat is not none %} (หมวดนี้ {{ r.n_cat }}){% endif %}</span></span>
+          {% if t.notes %}<span class="map-tags">
+            {% for kind, note in t.notes %}<span class="tag tag-{{ kind }}">{{ note }}</span>{% endfor %}
+          </span>{% endif %}
+          {% if r.samples %}<span class="map-samples">{{ r.samples | join(" · ") }}</span>{% endif %}
+        </span>
+      </label>
+      {% endfor %}
+    </fieldset>
+
+    <div class="map-form">
+      <div class="map-line">
+        <label class="sr-only" for="{{ gid }}-loc">ห้องปลายทางของกลุ่ม</label>
+        <select id="{{ gid }}-loc" name="location" data-options="locations" data-new-toggle="{{ gid }}-newloc">
+          <option value="">— เลือกห้อง —</option>
+          {% for l in locations %}<option value="{{ l.id }}" {% if loc_default == l.id %}selected{% endif %}>{{ l.name }}</option>{% endfor %}
+          <option value="{{ NEW }}" {% if loc_default == NEW %}selected{% endif %}>+ สร้างห้องใหม่…</option>
+        </select>
+        <span id="{{ gid }}-newloc" class="new-fields" {% if loc_default != NEW %}hidden{% endif %}>
+          <label class="sr-only" for="{{ gid }}-newloc-name">ชื่อห้องใหม่</label>
+          <input id="{{ gid }}-newloc-name" name="new_location" value="{{ g.target_name }}" maxlength="200" placeholder="ชื่อห้องใหม่">
+        </span>
+      </div>
+      <div class="map-line">
+        <label class="sr-only" for="{{ gid }}-holder">ผู้รับผิดชอบ</label>
+        <select id="{{ gid }}-holder" name="holder" data-options="staff" data-new-toggle="{{ gid }}-newstaff">
+          <option value="">— ไม่เปลี่ยนผู้รับผิดชอบ —</option>
+          {% for s in staff %}<option value="{{ s.id }}" {% if holder_default == s.id %}selected{% endif %}>{{ s | staff_label }}</option>{% endfor %}
+          <option value="{{ NEW }}" {% if holder_default == NEW %}selected{% endif %}>+ เพิ่มผู้รับผิดชอบใหม่…</option>
+        </select>
+        <span id="{{ gid }}-newstaff" class="new-fields" {% if holder_default != NEW %}hidden{% endif %}>
+          <label class="sr-only" for="{{ gid }}-nick">ชื่อเล่น</label>
+          <input id="{{ gid }}-nick" name="new_nickname" value="{{ g.holder_hint or '' }}" placeholder="ชื่อเล่น" maxlength="200">
+          <label class="sr-only" for="{{ gid }}-full">ชื่อ-นามสกุล (เติมทีหลังได้)</label>
+          <input id="{{ gid }}-full" name="new_full_name" value="" placeholder="ชื่อ-นามสกุล (เติมทีหลังได้)" maxlength="200">
+          <label class="sr-only" for="{{ gid }}-pos">ตำแหน่ง</label>
+          <input id="{{ gid }}-pos" name="new_position" value="{{ g.holder_hint or '' }}" placeholder="ตำแหน่ง" maxlength="200">
+        </span>
+      </div>
+      {% if g.holder_hint %}<p class="hint">ผู้รับผิดชอบที่เสนอ: {{ g.holder_hint }}{% if not g.holder_id %} (ยังไม่มีในระบบ จะเพิ่มให้ใหม่ ใส่ชื่อจริงทีหลังได้){% endif %}</p>{% endif %}
+      <div class="map-line">
+        <button type="submit" class="btn btn-small">จัดทั้งกลุ่มเข้าห้องนี้</button>
+        <span class="hint">จัดเฉพาะข้อความที่ติ๊ก</span>
+      </div>
+    </div>
+  </form>
+  {% else %}
+  <p class="muted">{% if filtered %}ไม่มีกลุ่มที่ตรงกับตัวกรอง{% else %}ไม่มีกลุ่มที่ต้องจัดแล้ว{% endif %}</p>
+  {% endfor %}
+</section>

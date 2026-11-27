@@ -1,0 +1,67 @@
+{# 1 แถว = ข้อความ "ใช้ประจำที่" 1 แบบ; ตอบกลับ htmx ด้วยแถวนี้ทั้งแถวหลังบันทึก #}
+{% set k = r.key %}
+{% set loc_default = r.preselect or NEW %}
+<tr id="{{ k }}">
+  <td class="map-text stack-main">
+    <span class="map-quote">{{ r.text }}</span>
+    <div class="map-tags">
+      {% if r.multi %}<span class="flag flag-main">ต้องแยกรายชิ้น</span>{% endif %}
+      {% if r.person %}<span class="tag" title="ข้อความนี้มีชื่อคนปนอยู่ เลือกผู้รับผิดชอบได้">มีชื่อคน</span>{% endif %}
+      <a class="small" href="{{ r.assets_url }}">ดูรายการ{% if r.multi %}เพื่อแยกทีละชิ้น{% endif %}</a>
+    </div>
+  </td>
+  <td class="num stack-inline" data-label="ชิ้น">{{ r.n }}{% if r.n_cat is not none %}<div class="muted small nowrap">หมวดนี้ {{ r.n_cat }}</div>{% endif %}</td>
+  <td class="small" data-label="ตอนนี้">
+    {% if r.mapped %}
+      <div>{% if r.mapped == r.n %}<span class="ok-text">จัดแล้ว</span>{% else %}จัดแล้ว {{ r.mapped }}/{{ r.n }}{% endif %} · {{ r.location_name }}</div>
+      {% if r.mixed %}<div class="muted">บางชิ้นอยู่ห้องอื่น</div>{% endif %}
+    {% else %}<span class="muted">ยังไม่จัด</span>{% endif %}
+    {% if r.holder_name %}<div>ผู้รับผิดชอบ: {{ r.holder_name }}{% if r.holder_count < r.n %} ({{ r.holder_count }}/{{ r.n }}){% endif %}</div>{% endif %}
+  </td>
+  <td class="map-form-cell">
+    {% if r.multi %}
+      <p class="hint">ข้อความนี้มีหลายห้องในช่องเดียว ต้องเปิดแต่ละชิ้นแล้วเลือกห้องในหน้าแก้ไข</p>
+    {% else %}
+    <form method="post" action="/locations/mapping" class="map-form"
+          hx-post="/locations/mapping" hx-target="closest tr" hx-swap="outerHTML">
+      {{ csrf_field }}
+      <input type="hidden" name="text" value="{{ r.text }}">
+      <input type="hidden" name="back" value="{{ back }}">
+      <div class="map-line">
+        <label class="sr-only" for="{{ k }}-loc">ห้องสำหรับ “{{ r.text }}”</label>
+        <select id="{{ k }}-loc" name="location" data-options="locations" data-new-toggle="{{ k }}-newloc">
+          <option value="">— เลือกห้อง —</option>
+          {% for l in locations %}<option value="{{ l.id }}" {% if loc_default == l.id %}selected{% endif %}>{{ l.name }}</option>{% endfor %}
+          <option value="{{ NEW }}" {% if loc_default == NEW %}selected{% endif %}>+ สร้างห้องใหม่…</option>
+        </select>
+        <span id="{{ k }}-newloc" class="new-fields" {% if loc_default != NEW %}hidden{% endif %}>
+          <label class="sr-only" for="{{ k }}-newloc-name">ชื่อห้องใหม่</label>
+          <input id="{{ k }}-newloc-name" name="new_location" value="{{ r.suggest_room }}" maxlength="200" placeholder="ชื่อห้องใหม่">
+        </span>
+      </div>
+
+      {% set holder_default = "" if (r.holder_id or not r.person) else NEW %}
+      {% if not r.person %}<details class="holder-more"><summary>+ ผู้รับผิดชอบ</summary>{% endif %}<div class="map-line">
+        <label class="sr-only" for="{{ k }}-holder">ผู้รับผิดชอบ</label>
+        <select id="{{ k }}-holder" name="holder" data-options="staff" data-new-toggle="{{ k }}-newstaff">
+          <option value="">— ไม่เปลี่ยนผู้รับผิดชอบ —</option>
+          {% for s in staff %}<option value="{{ s.id }}">{{ s | staff_label }}</option>{% endfor %}
+          <option value="{{ NEW }}" {% if holder_default == NEW %}selected{% endif %}>+ เพิ่มผู้รับผิดชอบใหม่…</option>
+        </select>
+        <span id="{{ k }}-newstaff" class="new-fields" {% if holder_default != NEW %}hidden{% endif %}>
+          <label class="sr-only" for="{{ k }}-nick">ชื่อเล่น</label>
+          <input id="{{ k }}-nick" name="new_nickname" value="{{ r.person[0] if r.person else '' }}" placeholder="ชื่อเล่น" maxlength="200">
+          <label class="sr-only" for="{{ k }}-full">ชื่อ-นามสกุล (เติมทีหลังได้)</label>
+          <input id="{{ k }}-full" name="new_full_name" value="{{ r.person[1] if r.person else '' }}" placeholder="ชื่อ-นามสกุล (เติมทีหลังได้)" maxlength="200">
+        </span>
+      </div>{% if not r.person %}</details>{% endif %}
+
+      <div class="map-line">
+        <button type="submit" class="btn btn-small">บันทึก {{ r.n }} ชิ้น</button>
+        {% if message %}<span class="saved" role="status">{{ message }}</span>{% endif %}
+      </div>
+    </form>
+    {% endif %}
+    {% if error %}<p class="field-error" role="alert">{{ error }}</p>{% endif %}
+  </td>
+</tr>

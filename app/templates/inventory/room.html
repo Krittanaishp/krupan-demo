@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}{{ room_name }} · ตรวจสอบพัสดุประจำปี {{ check.fiscal_year }}{% endblock %}
+{% block content %}
+{% set closed = check.closed_at is not none %}
+<p class="back"><a href="/inventory/{{ check.id }}">‹ ตรวจสอบพัสดุประจำปี {{ check.fiscal_year }}</a></p>
+<div class="page-head page-head-row">
+  <div>
+    <h1>{{ room_name }}</h1>
+    <p class="muted">{% if closed %}รอบนี้ปิดแล้ว ดูผลได้อย่างเดียว{% else %}กรอกผลจากใบรายการที่ติ๊กกลับมา แล้วกดบันทึกครั้งเดียวทั้งห้อง{% endif %}
+      · ตรวจแล้ว {{ n_checked }} / {{ rows | length }} ชิ้น</p>
+  </div>
+  <div class="head-actions"><a class="btn btn-secondary" href="/inventory/{{ check.id }}/rooms/{{ room }}/print">พิมพ์ใบรายการ</a></div>
+</div>
+
+{% if rows %}
+<form method="post" action="/inventory/{{ check.id }}/rooms/{{ room }}" class="inv-room-form" id="room-form">
+  {{ csrf_field }}
+  {% if not closed %}
+  <div class="inv-room-tools">
+    <button type="button" class="btn btn-secondary" data-fill-result="{{ RESULTS[0] }}">ทุกชิ้นที่ยังไม่กรอก = พบ ใช้งานได้</button>
+    <span class="hint">ปุ่มนี้ติ๊กให้ในหน้าจอเท่านั้น ตรวจดูแล้วกด “บันทึกทั้งห้อง”</span>
+  </div>
+  {% endif %}
+  <div class="table-wrap">
+    <table class="assets inv-entry stack-table">
+      <thead><tr>
+        <th scope="col" class="num">ลำดับ</th>
+        <th scope="col">เลขทะเบียน / รายการ</th>
+        {% for res in RESULTS %}<th scope="col" class="inv-res-col">{{ res }}</th>{% endfor %}
+        <th scope="col">หมายเหตุ</th>
+      </tr></thead>
+      <tbody>
+        {% set ns = namespace(group=None) %}
+        {% for r in rows %}
+        {% if no_room and r.location_text != ns.group %}{% set ns.group = r.location_text %}
+        <tr class="group-row"><th colspan="{{ 3 + RESULTS | length }}" scope="colgroup">ข้อความที่ตั้งเดิม: {{ r.location_text or "(ไม่มี)" }}</th></tr>
+        {% endif %}
+        <tr {% if not r.result %}class="pending"{% endif %}>
+          <td class="num stack-inline">{{ loop.index }}.</td>
+          <td>
+            <a class="nowrap" href="/assets/{{ r.asset_id }}">{{ r.reg_no or r.temp_code }}</a> {{ r.name }}
+            {% if r.result %}<div class="small muted">ตรวจแล้ว{% if r.checked_by_name %} โดย {{ r.checked_by_name }}{% endif %}
+              {{ r.checked_at | thai_datetime }} ({{ METHOD_LABELS.get(r.method, r.method) }}){% if r.found_location_name %} · พบที่ {{ r.found_location_name }}{% endif %}</div>{% endif %}
+          </td>
+          {% for res in RESULTS %}
+          {# จอแคบ (การ์ด): ชื่อผลแสดงข้างวงกลม และกดได้ทั้งก้อน · จอกว้าง: ชื่อผลอยู่ที่หัวคอลัมน์ #}
+          <td class="inv-res-col stack-inline">
+            <label class="inv-radio"><input type="radio" name="r-{{ r.asset_id }}" value="{{ res }}" {% if r.result == res %}checked{% endif %}
+              {% if closed %}disabled{% endif %}><span class="sr-only">{{ res }} {{ r.reg_no or r.temp_code }}</span><span class="inv-res-text" aria-hidden="true">{{ res }}</span></label>
+          </td>
+          {% endfor %}
+          <td data-label="หมายเหตุ"><label class="sr-only" for="n-{{ r.asset_id }}">หมายเหตุ {{ r.reg_no or r.temp_code }}</label>
+            <input id="n-{{ r.asset_id }}" name="n-{{ r.asset_id }}" value="{{ r.note or "" }}" maxlength="500" class="cell-input" {% if closed %}disabled{% endif %}></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if not closed %}
+  <div class="form-actions sticky-actions">
+    <button type="submit" class="btn">บันทึกทั้งห้อง</button>
+    <span class="hint">ชิ้นที่ไม่ได้เลือกผลยังเป็น “ยังไม่ตรวจ” · ชิ้นที่ตรวจด้วย QR แล้วจะไม่ถูกแก้ ถ้าไม่ได้เปลี่ยนผลหรือหมายเหตุ</span>
+  </div>
+  {% endif %}
+</form>
+{% else %}
+<div class="empty"><p>ห้องนี้ไม่มีครุภัณฑ์ในรอบตรวจสอบพัสดุ</p></div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}{{ item.name }} · บัญชีวัสดุ{% endblock %}
+{% block content %}
+<a class="back" href="/supplies">← ยอดคงเหลือ</a>
+<div class="detail-head">
+  <div>
+    <p class="detail-reg">หมวด {{ item.category }}{% if not item.active %} · <span class="badge badge-muted">ปิดใช้งาน</span>{% endif %}</p>
+    <h1>{{ item.name }}</h1>
+  </div>
+  {% if user and user.can_edit %}
+  <div class="head-actions">
+    <a class="btn btn-secondary" href="/supplies/items/{{ item.id }}/edit">แก้ไขรายการ</a>
+    <form method="post" action="/supplies/items/{{ item.id }}/active" class="inline">
+      {{ csrf_field }}<input type="hidden" name="active" value="{{ 0 if item.active else 1 }}">
+      <button type="submit" class="btn btn-secondary">{{ "ปิดใช้งาน" if item.active else "เปิดใช้งาน" }}</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+
+<div class="detail-grid">
+  <section class="card">
+    <dl>
+      <dt>คงเหลือ</dt>
+      <dd><strong class="supply-big">{{ "{:,}".format(balance) }} {{ item.base_unit }}</strong>
+        {% if breakdown %}<span class="muted">(= {{ breakdown }})</span>{% endif %}
+        {% if level == "out" %}<span class="badge badge-danger">หมดแล้ว</span>{% elif level == "low" %}<span class="badge badge-warn">ต่ำกว่าจุดสั่งซื้อ</span>{% endif %}</dd>
+      <dt>เตือนเมื่อเหลือต่ำกว่า</dt><dd>{{ "{:,} {}".format(item.reorder_point, item.base_unit) if item.reorder_point is not none else "ไม่ได้ตั้ง" }}</dd>
+      <dt>หน่วยรับเข้า</dt>
+      <dd>{% for u in units if u.active %}1 {{ u.name }} = {{ "{:,}".format(u.factor) }} {{ item.base_unit }}{% if not loop.last %} · {% endif %}{% else %}ใช้หน่วยหลักอย่างเดียว{% endfor %}</dd>
+      {% if item.note %}<dt>หมายเหตุ</dt><dd>{{ item.note }}</dd>{% endif %}
+    </dl>
+  </section>
+</div>
+
+<section class="stock-card">
+  <div class="page-head-row">
+    <h2>บัญชีวัสดุ</h2>
+    {# ตัวกรองอัตโนมัติ (static/js/autofilter.js): เปลี่ยนวันที่แล้วแทนที่เฉพาะตาราง (รวมลิงก์ Excel) #}
+    {% set card_url = "/supplies/items/" ~ item.id %}
+    <form id="card-filters" method="get" action="{{ card_url }}" class="range-form" data-autofilter
+          hx-get="{{ card_url }}" hx-trigger="krupan:filter" hx-target="#card-results" hx-select="#card-results"
+          hx-swap="outerHTML" hx-indicator="#card-results" hx-sync="this:replace">
+      <div class="field"><label for="date_from">ตั้งแต่วันที่</label><input id="date_from" type="date" name="date_from" value="{{ date_from or '' }}" data-empty-label="ตั้งแต่ต้น"></div>
+      <div class="field"><label for="date_to">ถึงวันที่</label><input id="date_to" type="date" name="date_to" value="{{ date_to or '' }}" data-empty-label="ถึงวันนี้"></div>
+      <noscript><button type="submit" class="btn btn-secondary">แสดง</button></noscript>
+    </form>
+  </div>
+  <div id="card-results" class="results card-results">
+  <div class="results-meta">
+    <p class="count">{% if date_from or date_to %}ช่วง {{ date_from | thai_date if date_from else "เริ่มต้น" }} – {{ date_to | thai_date if date_to else "ปัจจุบัน" }} · {% endif %}{{ rows | length }} รายการ</p>
+    <span class="results-links">
+      {% if date_from or date_to %}<a class="clear" href="{{ card_url }}" data-filter-clear="#card-filters">ล้างตัวกรอง</a>{% endif %}
+      {% set xlsx_url = card_url ~ "/card.xlsx" %}{% set xlsx_id = "card-xlsx" %}{% include "supplies/_xlsx_link.html" with context %}
+    </span>
+  </div>
+  <div class="table-wrap">
+    <table class="assets supply-table stack-table">
+      <thead>
+        <tr>
+          <th scope="col">วันที่</th>
+          <th scope="col">รับจาก / จ่ายให้</th>
+          <th scope="col">เลขที่เอกสาร</th>
+          <th scope="col" class="num">รับ</th>
+          <th scope="col" class="num">จ่าย</th>
+          <th scope="col" class="num">คงเหลือ</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="card-opening">
+          <td data-label="วันที่">{{ date_from | thai_date if date_from else "" }}</td>
+          <td class="stack-main">{{ "ยอดยกมา" if date_from else "เริ่มต้น" }}</td>
+          <td></td><td></td><td></td>
+          <td class="num stack-inline" data-label="คงเหลือ">{{ "{:,}".format(opening) }}</td>
+        </tr>
+        {% for r in rows %}
+        <tr {% if r.kind == "reversal" %}class="reversal"{% endif %}>
+          <td class="nowrap" data-label="วันที่">{{ r.date | thai_date }}</td>
+          <td class="stack-main">{% if r.link %}<a href="{{ r.link }}">{{ r.party }}</a>{% else %}{{ r.party }}{% endif %}
+            {% if r.unit_text %}<span class="muted">({{ r.unit_text }})</span>{% endif %}
+            {% if r.note and r.kind == "reversal" %}<div class="muted small">{{ r.note }}</div>{% endif %}</td>
+          <td data-label="เลขที่เอกสาร">{{ r.doc or "" }}</td>
+          <td class="num stack-inline" data-label="รับ">{{ "{:,}".format(r["in"]) if r["in"] else "" }}</td>
+          <td class="num stack-inline" data-label="จ่าย">{{ "{:,}".format(r.out) if r.out else "" }}</td>
+          <td class="num stack-inline" data-label="คงเหลือ"><strong>{{ "{:,}".format(r.balance) }}</strong></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="muted">ยังไม่มีรายการรับ–จ่าย{% if date_from or date_to %}ในช่วงนี้{% endif %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  </div>
+  <p class="hint">จำนวนเป็น{{ item.base_unit }} · รายการที่ยกเลิกแสดงเป็นแถว “ยกเลิก” คู่กับรายการเดิม (ไม่ลบประวัติ)</p>
+</section>
+{% endblock %}

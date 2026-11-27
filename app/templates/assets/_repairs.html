@@ -1,0 +1,73 @@
+{# ประวัติการซ่อม: ใช้ทั้งหน้ารายละเอียด (/assets/{id}) และหน้าสแกน QR (ฟอร์มธรรมดา ไม่ใช้ JS)
+   ตัวแปร: a, repairs, repair_back (หน้าที่จะกลับไปหลังบันทึก), can_edit_repairs #}
+{% macro date_fields(prefix, d) %}
+<div class="date-parts">
+  <label class="sr-only" for="{{ prefix }}-day">วัน</label>
+  <input id="{{ prefix }}-day" name="day" value="{{ d.day }}" inputmode="numeric" maxlength="2" size="2" aria-label="วัน">
+  <label class="sr-only" for="{{ prefix }}-month">เดือน</label>
+  <select id="{{ prefix }}-month" name="month" aria-label="เดือน">
+    {% for m in THAI_MONTHS_ABBR %}<option value="{{ loop.index }}" {% if d.month == loop.index | string %}selected{% endif %}>{{ m }}</option>{% endfor %}
+  </select>
+  <label class="sr-only" for="{{ prefix }}-year">ปี พ.ศ.</label>
+  <input id="{{ prefix }}-year" name="year_be" value="{{ d.year_be }}" inputmode="numeric" maxlength="4" size="4" aria-label="ปี พ.ศ.">
+</div>
+{% endmacro %}
+{% macro repair_fields(prefix, r) %}
+<fieldset class="field"><legend class="label-like">วันที่ซ่อม (พ.ศ.)</legend>{{ date_fields(prefix, r) }}</fieldset>
+<div class="field"><label for="{{ prefix }}-desc">รายการซ่อม</label>
+  <input id="{{ prefix }}-desc" name="description" value="{{ r.description }}" maxlength="500" required></div>
+<div class="field"><label for="{{ prefix }}-cost">ค่าใช้จ่าย (บาท) <span class="muted">เว้นว่าง = ไม่ทราบ</span></label>
+  <input id="{{ prefix }}-cost" name="cost" value="{{ r.cost }}" inputmode="decimal" maxlength="20"></div>
+<div class="field"><label for="{{ prefix }}-note">หมายเหตุ</label>
+  <input id="{{ prefix }}-note" name="note" value="{{ r.note }}" maxlength="1000"></div>
+<input type="hidden" name="back" value="{{ repair_back }}">
+{% endmacro %}
+
+<section class="card history repairs" id="repairs">
+  <h2>ประวัติการซ่อม</h2>
+  {% if repairs %}
+  {% set known = repairs | rejectattr("cost", "none") | list %}
+  <p class="muted small">{{ repairs | length }} ครั้ง · ค่าใช้จ่ายรวม {{ known | sum(attribute="cost") | money or 0 }} บาท
+    {% if known | length < repairs | length %}(ไม่ทราบค่าใช้จ่าย {{ repairs | length - known | length }} ครั้ง){% endif %}</p>
+  <ul class="repair-list">
+    {% for r in repairs %}
+    <li>
+      <p class="repair-line"><strong>{{ r.repaired_at | thai_date }}</strong> · {{ r.description }}
+        · {% if r.cost is none %}<span class="muted">ไม่ทราบค่าใช้จ่าย</span>{% else %}{{ r.cost | money }} บาท{% endif %}</p>
+      {% if r.note %}<p class="muted small">{{ r.note }}</p>{% endif %}
+      {% if can_edit_repairs %}
+      {% set d = r.repaired_at | string %}
+      {% set vals = {"day": d[8:10] | int | string, "month": d[5:7] | int | string, "year_be": (d[:4] | int + 543) | string,
+                     "description": r.description, "cost": "" if r.cost is none else (r.cost | money | replace(",", "")), "note": r.note or ""} %}
+      <details class="repair-edit">
+        <summary>แก้ไข / ลบ</summary>
+        <form method="post" action="/assets/{{ a.id }}/repairs/{{ r.id }}" class="form repair-form">
+          {{ csrf_field }}
+          {{ repair_fields("rep-" ~ r.id, vals) }}
+          <div class="form-actions"><button type="submit" class="btn btn-small">บันทึกการแก้ไข</button></div>
+        </form>
+        <form method="post" action="/assets/{{ a.id }}/repairs/{{ r.id }}/delete" class="inline">
+          {{ csrf_field }}
+          <input type="hidden" name="back" value="{{ repair_back }}">
+          <button type="submit" class="btn btn-small btn-danger">ลบรายการนี้</button>
+        </form>
+      </details>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">ยังไม่มีประวัติการซ่อม</p>
+  {% endif %}
+  {% if can_edit_repairs %}
+  <details class="repair-add">
+    <summary class="btn btn-secondary btn-small">เพิ่มประวัติการซ่อม</summary>
+    <form method="post" action="/assets/{{ a.id }}/repairs" class="form repair-form">
+      {{ csrf_field }}
+      {{ repair_fields("rep-new", {"day": today.day | string, "month": today.month | string, "year_be": (today.year + 543) | string,
+                                   "description": "", "cost": "", "note": ""}) }}
+      <div class="form-actions"><button type="submit" class="btn btn-small">บันทึก</button></div>
+    </form>
+  </details>
+  {% endif %}
+</section>

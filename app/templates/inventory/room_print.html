@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <title>{{ title }}</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="{{ static_url('css/report-fonts.css') }}">
+  <link rel="stylesheet" href="{{ static_url('css/print-doc.css') }}">
+  <script src="{{ static_url('js/doc.js') }}" defer></script>
+</head>
+<body class="doc">
+  {% set total = namespace(n=0) %}{% for s in sheets %}{% set total.n = total.n + s.rows | length %}{% endfor %}
+  <div class="doc-toolbar">
+    <a href="{{ back_url }}">‹ {{ back_label }}</a>
+    <button type="button" class="btn" data-print>พิมพ์</button>
+    <p class="hint">ตั้งค่าการพิมพ์: กระดาษ A4 แนวตั้ง สเกล 100% ปิดหัวกระดาษและท้ายกระดาษ ·
+      {% if building_name %}{{ building_name }} {{ sheets | length }} ห้อง (ห้องละหน้า) · {% endif %}{{ total.n }} รายการ</p>
+    {% include "_font_check.html" %}
+  </div>
+  {% for s in sheets %}
+  {# ห้องละหน้า: ห้องถัดไปขึ้นหน้าใหม่ #}
+  <div class="doc-page{% if not loop.first %} new-page{% endif %}">
+    <h1>ใบรายการตรวจสอบพัสดุ ประจำปีงบประมาณ {{ check.fiscal_year }}</h1>
+    <p class="doc-sub">{{ office }}</p>
+    <p class="doc-meta">{% if building_name %}อาคาร/พื้นที่: {{ building_name }} · {% endif %}ห้อง/สถานที่: <strong>{{ s.room_name }}</strong> · จำนวน {{ s.rows | length }} รายการ</p>
+    <p>วันที่ตรวจ ....................................... ผู้ตรวจ ...........................................................</p>
+    {% if s.holder_focus %}
+    <p class="holder-note">ของติดตัวบุคคล/ประจำตำแหน่ง: ไม่ได้อยู่ในห้อง ต้อง<strong>ขอดูจากผู้รับผิดชอบ</strong>ตามรายชื่อในคอลัมน์ “ผู้รับผิดชอบ”</p>
+    {% endif %}
+    <p class="small">วิธีกรอก: ติ๊ก ✓ ช่องใดช่องหนึ่ง พบ (ใช้งานได้) / ชำรุด / ไม่พบ ถ้าพบอยู่ห้องอื่นให้เขียนชื่อห้องในช่องหมายเหตุ</p>
+    <table>
+      {# ห้องที่เน้นผู้รับผิดชอบ: กำหนดความกว้างทุกคอลัมน์ให้รวม 100% (table-layout: fixed ไม่อย่างนั้นคอลัมน์รายการถูกบีบ) #}
+      <thead><tr>
+        {% if s.holder_focus %}
+        <th class="w-6">ที่</th><th class="w-25">หมายเลขทะเบียน</th><th class="w-27">รายการ</th>
+        <th class="w-16 holder-col">ผู้รับผิดชอบ</th>
+        <th class="w-6">พบ</th><th class="w-6">ชำรุด</th><th class="w-6">ไม่พบ</th><th class="w-8">หมายเหตุ</th>
+        {% else %}
+        <th class="w-8">ลำดับ</th>
+        <th class="w-27">หมายเลขทะเบียน</th>
+        <th>รายการ</th>
+        <th class="w-7">พบ</th><th class="w-7">ชำรุด</th><th class="w-7">ไม่พบ</th>
+        <th class="w-17">หมายเหตุ</th>
+        {% endif %}
+      </tr></thead>
+      <tbody>
+        {% set ns = namespace(group=None) %}
+        {% for r in s.rows %}
+        {% if s.no_room and r.location_text != ns.group %}{% set ns.group = r.location_text %}
+        <tr class="group-row"><td colspan="{{ 8 if s.holder_focus else 7 }}">ที่ตั้งตามข้อความเดิม: {{ r.location_text or "(ไม่มี)" }}</td></tr>
+        {% endif %}
+        <tr>
+          <td class="c">{{ loop.index }}</td>
+          <td class="code">{{ r.reg_no or r.temp_code }}</td>
+          <td>{{ r.name }}</td>
+          {% if s.holder_focus %}<td class="holder-col">{% if r.holder_name %}{{ r.holder_name }}{% if r.holder_position and r.holder_position != r.holder_name %}<br><span class="small">{{ r.holder_position }}</span>{% endif %}{% else %}<span class="small">(ยังไม่ระบุ)</span>{% endif %}</td>{% endif %}
+          <td class="c"><span class="box"></span></td><td class="c"><span class="box"></span></td><td class="c"><span class="box"></span></td>
+          <td></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <h2>ของที่พบแต่ไม่มีในรายการ</h2>
+    <table>
+      <thead><tr><th class="w-8">ลำดับ</th><th>รายการ / ลักษณะ / ยี่ห้อ</th><th class="w-22">หมายเลขที่ติดอยู่ (ถ้ามี)</th>
+        <th class="w-7">ใช้ได้</th><th class="w-7">ชำรุด</th><th class="w-17">หมายเหตุ</th></tr></thead>
+      <tbody>
+        {% for i in range(blank_rows) %}<tr class="blank"><td class="c">{{ i + 1 }}</td><td></td><td></td>
+          <td class="c"><span class="box"></span></td><td class="c"><span class="box"></span></td><td></td></tr>{% endfor %}
+      </tbody>
+    </table>
+
+    {% include "inventory/_signs.html" %}
+  </div>
+  {% endfor %}
+</body>
+</html>

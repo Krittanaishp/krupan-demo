@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}ผู้รับผิดชอบ{% endblock %}
+{% block content %}
+{% include "places/_head.html" %}
+<div class="page-head">
+  <h2>ผู้รับผิดชอบครุภัณฑ์</h2>
+  <p class="muted">ทั้งหมด {{ rows | length }} คน · ใส่แค่ชื่อเล่นก่อนได้ ชื่อ-นามสกุลเติมทีหลัง</p>
+</div>
+
+{% if can_edit %}
+<form method="post" action="/staff" class="card inline-add">
+  {{ csrf_field }}
+  <div class="field">
+    <label for="new-nick">ชื่อเล่น</label>
+    <input id="new-nick" name="nickname" maxlength="200" placeholder="เช่น เอ็ม">
+  </div>
+  <div class="field">
+    <label for="new-full">ชื่อ-นามสกุล</label>
+    <input id="new-full" name="full_name" maxlength="200">
+  </div>
+  <div class="field">
+    <label for="new-pos">ตำแหน่ง</label>
+    <input id="new-pos" name="position" maxlength="200">
+  </div>
+  <button type="submit" class="btn">เพิ่มผู้รับผิดชอบ</button>
+</form>
+{% else %}
+<p class="hint"><a href="/login?next=/staff">เข้าสู่ระบบ</a> ด้วยบัญชี editor เพื่อเพิ่มหรือแก้ไขรายชื่อ</p>
+{% endif %}
+
+{% if rows %}
+<div class="table-wrap">
+  <table class="assets manage-table stack-table">
+    <thead>
+      <tr>
+        <th scope="col">ชื่อเล่น</th>
+        <th scope="col">ชื่อ-นามสกุล</th>
+        <th scope="col">ตำแหน่ง</th>
+        <th scope="col" class="num">ครุภัณฑ์</th>
+        <th scope="col">สถานะ</th>
+        {% if can_edit %}<th scope="col"><span class="sr-only">ดำเนินการ</span></th>{% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in rows %}
+      <tr {% if not s.active %}class="inactive"{% endif %}>
+        {% if can_edit %}
+        {# ช่องกรอกอยู่คนละ td จึงผูกกับฟอร์มด้วย attribute form= #}
+        <td data-label="ชื่อเล่น"><label class="sr-only" for="nick-{{ s.id }}">ชื่อเล่น</label>
+            <input class="cell-input" id="nick-{{ s.id }}" name="nickname" value="{{ s.nickname or '' }}" form="staff-{{ s.id }}" maxlength="200"></td>
+        <td data-label="ชื่อ-นามสกุล"><label class="sr-only" for="full-{{ s.id }}">ชื่อ-นามสกุล</label>
+            <input class="cell-input" id="full-{{ s.id }}" name="full_name" value="{{ s.full_name or '' }}" form="staff-{{ s.id }}" maxlength="200"
+                   {% if not s.full_name %}placeholder="ยังไม่ได้ใส่"{% endif %}></td>
+        <td data-label="ตำแหน่ง"><label class="sr-only" for="pos-{{ s.id }}">ตำแหน่ง</label>
+            <input class="cell-input" id="pos-{{ s.id }}" name="position" value="{{ s.position or '' }}" form="staff-{{ s.id }}" maxlength="200"></td>
+        {% else %}
+        <td class="stack-main">{{ s.nickname or "—" }}</td><td data-label="ชื่อ-นามสกุล">{{ s.full_name or "—" }}</td><td data-label="ตำแหน่ง">{{ s.position or "—" }}</td>
+        {% endif %}
+        <td class="num stack-inline" data-label="ครุภัณฑ์">{{ s.n }}</td>
+        <td class="stack-inline">{% if s.active %}<span class="badge badge-ok">ใช้งาน</span>{% else %}<span class="badge badge-muted">ปิดใช้งาน</span>{% endif %}</td>
+        {% if can_edit %}
+        <td class="actions">
+          <form method="post" action="/staff/{{ s.id }}" id="staff-{{ s.id }}" class="inline">
+            {{ csrf_field }}
+            <button type="submit" class="btn btn-small btn-secondary">บันทึก</button>
+          </form>
+          <form method="post" action="/staff/{{ s.id }}/active" class="inline">
+            {{ csrf_field }}
+            <input type="hidden" name="active" value="{{ 0 if s.active else 1 }}">
+            <button type="submit" class="btn btn-small btn-secondary">{{ "ปิดใช้งาน" if s.active else "เปิดใช้งาน" }}</button>
+          </form>
+          {% if not s.n and not s.n_moves %}
+          <form method="post" action="/staff/{{ s.id }}/delete" class="inline">
+            {{ csrf_field }}
+            <button type="submit" class="btn btn-small btn-danger">ลบ</button>
+          </form>
+          {% endif %}
+        </td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p class="hint">คนที่มีครุภัณฑ์หรือประวัติการย้ายอ้างถึงลบไม่ได้ ใช้ “ปิดใช้งาน” แทน</p>
+{% else %}
+<div class="empty"><p>ยังไม่มีรายชื่อผู้รับผิดชอบ</p></div>
+{% endif %}
+{% endblock %}

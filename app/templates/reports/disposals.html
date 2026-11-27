@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <title>ครุภัณฑ์ที่จำหน่ายในปีงบประมาณ {{ fy }}</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="{{ static_url('css/report-fonts.css') }}">
+  <link rel="stylesheet" href="{{ static_url('css/print-doc.css') }}">
+  <style nonce="{{ csp_nonce(request) }}">
+    @page { size: A4 landscape; margin: 12mm; }
+    .doc-page { width: 297mm; min-height: 210mm; padding: 12mm; }
+    .doc table { font-size: 15pt; }
+  </style>
+  <script src="{{ static_url('js/doc.js') }}" defer></script>
+</head>
+<body class="doc">
+  <div class="doc-toolbar">
+    <a href="/reports">‹ รายงาน</a>
+    <button type="button" class="btn" data-print>พิมพ์</button>
+    <a class="btn btn-secondary" href="/reports/disposals.xlsx?fy={{ fy }}&amp;digits={{ 'thai' if thai else 'arabic' }}">Excel</a>
+    <p class="hint">ตั้งค่าการพิมพ์: กระดาษ A4 แนวนอน สเกล 100% ปิดหัวกระดาษและท้ายกระดาษ</p>
+    {% include "_font_check.html" %}
+  </div>
+  <div class="doc-page">
+    <h1>รายการครุภัณฑ์ที่จำหน่ายในปีงบประมาณ {{ fy_text }}</h1>
+    <p class="doc-sub">{{ office_line }}</p>
+    <p class="doc-meta">จำนวน {{ rows | length }} รายการ</p>
+    <table>
+      <thead><tr>
+        <th class="w-5">ลำดับ</th><th class="w-9">วันที่จำหน่าย</th><th class="w-17">หมายเลขทะเบียน</th><th>รายการ</th>
+        <th class="w-9">ราคาต่อหน่วย</th><th class="w-10">วิธีจำหน่าย</th><th class="w-14">เลขที่หนังสืออนุมัติ</th>
+        <th class="w-10">จำนวนเงินที่ได้</th><th class="w-9">หมายเหตุ</th>
+      </tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr><td class="c">{{ r.no }}</td><td class="c">{{ r.date }}</td><td class="code">{{ r.code }}</td><td>{{ r.name }}</td>
+          <td class="n">{{ r.price }}</td><td>{{ r.method }}</td><td>{{ r.doc_ref }}</td><td class="n">{{ r.amount }}</td><td>{{ r.note }}</td></tr>
+        {% else %}
+        <tr><td colspan="9" class="c">ไม่มีรายการจำหน่ายในปีงบประมาณนี้</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p>รวม {{ n }} รายการ · มูลค่าตามทะเบียน {{ "{:,.2f}".format(value) }} บาท
+      {% if unknown %}(ไม่ทราบมูลค่า {{ unknown }} รายการ){% endif %} · จำนวนเงินที่ได้รวม {{ "{:,.2f}".format(amount) }} บาท</p>
+    {% include "reports/_signs.html" %}
+  </div>
+</body>
+</html>

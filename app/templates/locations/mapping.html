@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}จัดข้อความที่ตั้งเข้าห้อง{% endblock %}
+{% block content %}
+{% include "places/_head.html" %}
+<div class="page-head">
+  <h2>จัดห้องจากข้อมูลเดิม</h2>
+  <p class="muted">
+    ข้อความ “ใช้ประจำที่” จากไฟล์ Excel มี {{ n_texts }} แบบ (ยังจัดไม่ครบ {{ n_todo }} แบบ)
+    เลือกห้องแล้วกดบันทึก ทุกชิ้นที่มีข้อความนี้จะได้ห้องเดียวกัน ข้อความเดิมยังเก็บไว้เสมอ
+    {% if no_text %}· ไม่มีข้อความที่ตั้ง {{ no_text }} ชิ้น (จัดทีละชิ้นในหน้าแก้ไข){% endif %}
+  </p>
+</div>
+
+{# ช่องค้นหา/ตัวกรองอยู่นอกส่วนที่ถูกแทนที่ พิมพ์ต่อได้ไม่สะดุด · ค่าทั้งหมดอยู่ใน URL #}
+<form id="map-filters" class="filters" action="/places/mapping" method="get" role="search" data-autofilter
+      hx-get="/places/mapping" hx-trigger="krupan:filter" hx-target="#mapping-results" hx-swap="outerHTML"
+      hx-indicator="#mapping-results" hx-sync="this:replace">
+  <div class="field field-search">
+    <label for="map-q">ค้นหาข้อความเดิม</label>
+    <input id="map-q" name="q" type="search" value="{{ f.q }}" autocomplete="off" placeholder="เช่น ปกครอง, มค., ชั้น ๒">
+  </div>
+  <div class="field">
+    <label for="map-status">สถานะ</label>
+    <select id="map-status" name="status">
+      {% for value, label in statuses %}<option value="{{ value }}" {% if f.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label for="map-cat">หมวดครุภัณฑ์</label>
+    <select id="map-cat" name="cat">
+      <option value="">ทุกหมวด</option>
+      {% for c in categories %}<option value="{{ c.code }}" {% if f.cat == c.code %}selected{% endif %}>{{ c.name }} ({{ c.n }})</option>{% endfor %}
+    </select>
+  </div>
+  <noscript><button type="submit" class="btn">ค้นหา</button></noscript>
+</form>
+
+{% include "locations/_mapping_results.html" %}
+{% endblock %}

@@ -1,0 +1,46 @@
+{# ตารางยอดคงเหลือ (ใช้ทั้งหน้าเต็มและผลค้นหาแบบ htmx) #}
+{% set filtered = f.q or f.category or f.low or f.as_of %}
+<div class="results-meta">
+  <p class="count">{% if f.as_of %}ยอด ณ วันที่ {{ f.as_of | thai_date }} · {% endif %}{{ rows | length }} รายการ{% if f.q or f.category or f.low %} (จากทั้งหมด {{ n_items }}){% endif %}</p>
+  <span class="results-links">
+    {% if filtered %}<a class="clear" href="/supplies" data-filter-clear="#balance-filters">ล้างตัวกรอง</a>{% endif %}
+    {% set xlsx_url = "/supplies/balances.xlsx" %}{% include "supplies/_xlsx_link.html" with context %}
+  </span>
+</div>
+{% if rows %}
+<div class="table-wrap">
+  <table class="assets supply-table stack-table">
+    <thead>
+      <tr>
+        <th scope="col">รายการ</th>
+        <th scope="col">หมวด</th>
+        <th scope="col" class="num">คงเหลือ</th>
+        <th scope="col">หน่วย</th>
+        <th scope="col">คิดเป็น</th>
+        <th scope="col" class="num">เตือนเมื่อเหลือต่ำกว่า</th>
+        <th scope="col">สถานะ</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td class="stack-main name"><a href="/supplies/items/{{ r.id }}">{{ r.name }}</a></td>
+        <td data-label="หมวด">{{ r.category }}</td>
+        <td class="num stack-inline qty-cell" data-label="คงเหลือ"><strong>{{ "{:,}".format(r.balance) }}</strong></td>
+        <td class="stack-inline">{{ r.base_unit }}</td>
+        <td data-label="คิดเป็น" class="muted">{{ r.breakdown or "" }}</td>
+        <td class="num stack-inline" data-label="เตือนเมื่อเหลือต่ำกว่า">{{ "{:,}".format(r.reorder_point) if r.reorder_point is not none else "—" }}</td>
+        <td class="stack-inline">{% if r.level == "out" %}<span class="badge badge-danger">หมดแล้ว</span>{% elif r.level == "low" %}<span class="badge badge-warn">ต่ำกว่าจุดสั่งซื้อ</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% elif n_items %}
+<div class="empty"><p>ไม่พบรายการที่ตรงกับตัวกรอง</p></div>
+{% else %}
+<div class="empty">
+  <p>ยังไม่มีรายการวัสดุ</p>
+  {% if user and user.can_edit %}<p><a href="/supplies/import">นำเข้ารายการและยอดยกมาจาก Excel</a> หรือ <a href="/supplies/items/new">เพิ่มรายการทีละรายการ</a></p>{% endif %}
+</div>
+{% endif %}

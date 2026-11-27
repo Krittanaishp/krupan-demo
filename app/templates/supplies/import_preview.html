@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}ตรวจไฟล์นำเข้าวัสดุ{% endblock %}
+{% macro opening_input(p, file_value) %}{% set key = p.row | string %}
+<input class="opening-input" type="text" inputmode="numeric" name="open_{{ p.row }}" id="open_{{ p.row }}"
+       value="{{ entered[key] if key in entered else (file_value or 0) }}" data-file="{{ file_value or 0 }}"
+       aria-label="ยอดยกมา {{ p.name }} ({{ p.base_unit }})" {% if errors[p.row] %}aria-invalid="true"{% endif %} autocomplete="off">
+<span class="opening-note muted small" data-opening-note {% if not (key in entered and entered[key] | string != (file_value or 0) | string) %}hidden{% endif %}>ในไฟล์ {{ "{:,}".format(file_value or 0) }}</span>
+{% if errors[p.row] %}<span class="field-error">{{ errors[p.row] }}</span>{% endif %}
+{%- endmacro %}
+{% macro units_text(p) %}{% for u, f in p.units %}{{ u }} = {{ "{:,}".format(f) }}{% if not loop.last %}, {% endif %}{% else %}—{% endfor %}{% endmacro %}
+{% block content %}
+<a class="back" href="/supplies/import">← เลือกไฟล์ใหม่</a>
+<div class="page-head">
+  <h1>ตรวจก่อนนำเข้า: {{ filename }}</h1>
+  <p class="muted">ยังไม่ได้บันทึกอะไร · แก้ยอดยกมาและวันที่ได้ในหน้านี้ (เช่น ยอดที่นับใหม่วันเริ่มใช้ระบบ) · ตรวจทุกกลุ่มแล้วกด “ยืนยันนำเข้า” ด้านล่าง</p>
+</div>
+{% if message %}<p class="form-error" role="alert">{{ message }}</p>{% endif %}
+
+<nav class="group-tabs" aria-label="กลุ่มผลการตรวจ">
+  <a href="#g-new">ใหม่ <span class="count-pill">{{ groups.new | length }}</span></a>
+  <a href="#g-same">มีอยู่แล้วและตรงกัน <span class="count-pill">{{ groups.same | length }}</span></a>
+  <a href="#g-diff">มีอยู่แล้วแต่ต่าง <span class="count-pill">{{ groups.diff | length }}</span></a>
+  <a href="#g-dup">ชื่อซ้ำกันในไฟล์ <span class="count-pill">{{ groups.dup | length }}</span></a>
+  <a href="#g-bad">แถวที่อ่านไม่ได้ <span class="count-pill">{{ groups.bad | length }}</span></a>
+</nav>
+
+<form method="post" action="/supplies/import/confirm" class="import-preview" data-import-preview>
+  {{ csrf_field }}
+  <input type="hidden" name="payload" value="{{ payload }}">
+  <input type="hidden" name="sha" value="{{ sha }}">
+  <input type="hidden" name="filename" value="{{ filename }}">
+  <div class="field opening-date-field">
+    <label for="opening_date">วันที่ของยอดยกมา (วันที่นับของจริง)</label>
+    <input id="opening_date" type="date" name="opening_date" value="{{ opening_date }}" max="{{ today }}" required
+           {% if message and not errors %}aria-invalid="true"{% endif %}>
+    <p class="hint">ยอดยกมาทุกรายการในชุดนี้ลงวันที่นี้ รับ/จ่ายที่เกิดก่อนวันนี้ต้องนับรวมในยอดแล้ว</p>
+  </div>
+
+  <section id="g-new" class="import-group">
+    <h2>1. รายการใหม่ ({{ groups.new | length }}) <span class="muted small">จะเพิ่มเข้าระบบ</span></h2>
+    {% if groups.new %}
+    <div class="table-wrap"><table class="assets supply-table stack-table">
+      <thead><tr><th scope="col" class="num">แถว</th><th scope="col">หมวด</th><th scope="col">ชื่อรายการ</th><th scope="col">หน่วยหลัก</th>
+        <th scope="col">หน่วยใหญ่</th><th scope="col" class="num">เตือนเมื่อเหลือต่ำกว่า</th><th scope="col" class="num">ยอดยกมา (แก้ได้)</th></tr></thead>
+      <tbody>{% for p in groups.new %}
+        <tr><td class="num stack-inline" data-label="แถว">{{ p.row }}</td><td data-label="หมวด">{{ p.category }}</td>
+          <td class="stack-main">{{ p.name }}</td><td class="stack-inline" data-label="หน่วยหลัก">{{ p.base_unit }}</td>
+          <td data-label="หน่วยใหญ่">{{ units_text(p) }}</td>
+          <td class="num stack-inline" data-label="เตือนเมื่อเหลือต่ำกว่า">{{ "{:,}".format(p.reorder_point) if p.reorder_point is not none else "—" }}</td>
+          <td class="num opening-cell" data-label="ยอดยกมา ({{ p.base_unit }})">{{ opening_input(p, p.opening) }}</td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% else %}<p class="muted">ไม่มี</p>{% endif %}
+  </section>
+
+  <section id="g-same" class="import-group">
+    <h2>2. มีอยู่แล้วและตรงกัน ({{ groups.same | length }}) <span class="muted small">ไม่เปลี่ยนอะไร</span></h2>
+    {% if groups.same %}<p>{% for p in groups.same %}แถว {{ p.row }} {{ p.name }}{% if not loop.last %} · {% endif %}{% endfor %}</p>
+    {% else %}<p class="muted">ไม่มี</p>{% endif %}
+  </section>
+
+  <section id="g-diff" class="import-group">
+    <h2>3. มีอยู่แล้วแต่ข้อมูลต่าง ({{ groups.diff | length }}) <span class="muted small">เลือกทีละช่อง ค่าเริ่มต้นคือใช้ค่าเดิมในระบบ</span></h2>
+    {% for p in groups.diff %}
+    <div class="card diff-card">
+      <p><strong>แถว {{ p.row }}: {{ p.name }}</strong> <span class="muted">· หมวด {{ p.category }}</span></p>
+      <table class="assets changes stack-table">
+        <thead><tr><th scope="col">ช่อง</th><th scope="col">ในระบบตอนนี้</th><th scope="col">ในไฟล์</th><th scope="col">ใช้ค่าไหน</th></tr></thead>
+        <tbody>{% for f in p.fields %}
+          <tr><th scope="row">{{ f.label }}</th><td data-label="ในระบบตอนนี้">{{ f.db if f.db is not none else "—" }}</td>
+            <td data-label="ในไฟล์">{% if f.field == "opening" and f.can %}{{ opening_input(p, f.file) }}{% else %}{{ f.file }}{% endif %}</td>
+            <td class="pick-cell">{% if f.can %}{% set chose_file = picks is not none and (p.row, f.field) in picks %}
+              <label class="check"><input type="radio" name="pick_{{ p.row }}_{{ f.field }}" value="db" {% if not chose_file %}checked{% endif %}><span>ค่าเดิม</span></label>
+              <label class="check"><input type="radio" name="pick_{{ p.row }}_{{ f.field }}" value="file" {% if chose_file %}checked{% endif %}><span>{{ "เพิ่มหน่วยจากไฟล์" if f.field == "units" else ("ใส่ยอดยกมา" if f.field == "opening" else ("เปิดใช้งานอีกครั้ง" if f.field == "active" else "ค่าจากไฟล์")) }}</span></label>
+              {% else %}<span class="warn-text">{{ f.why }}</span>{% endif %}</td></tr>
+        {% endfor %}</tbody>
+      </table>
+    </div>
+    {% else %}<p class="muted">ไม่มี</p>{% endfor %}
+  </section>
+
+  <section id="g-dup" class="import-group">
+    <h2>4. ชื่อซ้ำกันเองในไฟล์ ({{ groups.dup | length }}) <span class="muted small">ไม่นำเข้า แก้ไฟล์ให้เหลือแถวเดียวแล้วนำเข้าใหม่</span></h2>
+    {% if groups.dup %}<ul>{% for p in groups.dup %}<li>แถว {{ p.row }}: {{ p.category }} · {{ p.name }} (ซ้ำกับแถว {{ p.others | join(", ") }})</li>{% endfor %}</ul>
+    {% else %}<p class="muted">ไม่มี</p>{% endif %}
+  </section>
+
+  <section id="g-bad" class="import-group">
+    <h2>5. แถวที่อ่านไม่ได้ ({{ groups.bad | length }}) <span class="muted small">ไม่นำเข้า</span></h2>
+    {% if groups.bad %}<ul>{% for p in groups.bad %}<li>แถว {{ p.row }}{% if p.raw.name %} ({{ p.raw.name }}){% endif %}: {{ p.errors | join(" · ") }}</li>{% endfor %}</ul>
+    {% else %}<p class="muted">ไม่มี</p>{% endif %}
+  </section>
+
+  <div class="form-actions">
+    {% if n_save %}
+    <button type="submit" class="btn">ยืนยันนำเข้า</button>
+    <span class="hint">ระบบสำรอง db ก่อนบันทึก และบันทึกทั้งชุดพร้อมกัน ยกเลิกทั้งชุดได้ภายหลังถ้ายังไม่มีรับ/จ่าย
+      · กด Enter ในช่องยอดยกมา = ไปช่องถัดไป (ไม่บันทึก)</span>
+    {% else %}
+    <span class="hint">ไม่มีอะไรให้นำเข้า (ไม่มีรายการใหม่ และไม่มีช่องที่เปลี่ยนได้)</span>
+    {% endif %}
+    <a href="/supplies/import">ยกเลิก</a>
+  </div>
+</form>
+<script src="{{ static_url('js/import_preview.js') }}" defer></script>
+{% endblock %}

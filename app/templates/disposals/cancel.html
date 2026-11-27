@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}ยกเลิกการจำหน่าย{% endblock %}
+{% block content %}
+<p class="back"><a href="/assets/{{ d.asset_id }}">‹ {{ d.reg_no or d.temp_code }}</a></p>
+<div class="page-head">
+  <h1>ยกเลิกการจำหน่าย</h1>
+  <p class="muted">{{ d.reg_no or d.temp_code }} · {{ d.name }} · จำหน่ายเมื่อ {{ d.disposed_at | thai_date }} ({{ d.method }}) หนังสือ {{ d.doc_ref }}</p>
+</div>
+{% if d.cancelled_at %}
+<p class="form-error">รายการนี้ถูกยกเลิกไปแล้ว</p>
+{% else %}
+<form method="post" action="/disposals/{{ d.id }}/cancel" class="card form narrow">
+  {{ csrf_field }}
+  {% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
+  <p>สถานะจะกลับเป็น “{{ d.status_before if d.status_before and d.status_before != "จำหน่ายแล้ว" else "ใช้งาน" }}” และบันทึกการจำหน่ายเดิมยังเก็บไว้เป็นประวัติ</p>
+  <div class="field">
+    <label for="c-reason">เหตุผลที่ยกเลิก (บันทึกในประวัติ)</label>
+    <textarea id="c-reason" name="reason" rows="3" maxlength="500" required></textarea>
+  </div>
+  <div class="form-actions"><button type="submit" class="btn btn-danger">ยกเลิกการจำหน่าย</button>
+    <a href="/assets/{{ d.asset_id }}">ไม่ยกเลิก</a></div>
+</form>
+{% endif %}
+{% endblock %}

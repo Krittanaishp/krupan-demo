@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}ตั้งค่าจัดห้อง{% endblock %}
+{% block content %}
+{% include "settings/_tabs.html" %}
+<div class="page-head">
+  <h1>จัดห้องจากข้อมูลเดิม</h1>
+  <p class="muted">ใช้ตอนระบบเสนอ “กลุ่มที่น่าจะเป็นห้องเดียวกัน” ในหน้า <a href="/places/mapping">จัดห้องจากข้อมูลเดิม</a>
+    ระบบแค่เสนอ คนต้องติ๊กยืนยันก่อนจัดทุกครั้ง · ทุกการแก้บันทึกในประวัติการแก้ไข</p>
+</div>
+
+<section id="rules" aria-labelledby="rules-title">
+  <h2 id="rules-title" class="section-title">ข้อความเดิม → ห้องที่ถูกต้อง</h2>
+  <p class="hint">ข้อมูลที่รู้แล้ว (เช่นจากการเดินดูจริง) ระบบใช้ตารางนี้ก่อนกฎตัวย่อ ข้อความที่อยู่ในตารางจะไม่ถูกเดารวมกับข้อความอื่น
+    · <strong>ตรงทุกตัวอักษร</strong>: ใช้เมื่อข้อความนั้นต้องแยกจากข้อความที่คล้ายกัน (เช่น “ป.อาวุโส” กับ “ห้อง ป.อาวุโส”)
+    ถ้าไม่ติ๊ก จะเทียบหลังตัดช่องว่าง ตัวย่อ และคำว่า “ห้อง/อำเภอ” · บันทึกเหตุผลของการตัดสินใจไว้ใน docs/ROOM_DECISIONS.md ด้วย</p>
+  <div class="table-wrap">
+    <table class="assets manage-table rules-table stack-table">
+      <thead>
+        <tr>
+          <th scope="col">ข้อความเดิม</th>
+          <th scope="col">ตรงทุกตัวอักษร</th>
+          <th scope="col">ห้องที่ถูกต้อง</th>
+          <th scope="col">ผู้รับผิดชอบที่เสนอ</th>
+          <th scope="col">หมายเหตุ</th>
+          <th scope="col">ใช้งาน</th>
+          <th scope="col"><span class="sr-only">บันทึก</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rules %}
+        <tr id="rule-{{ r.id }}" {% if not r.active %}class="inactive"{% endif %}>
+          <td data-label="ข้อความเดิม"><input form="rule-form-{{ r.id }}" name="match_text" value="{{ r.match_text }}" maxlength="200" required
+                     aria-label="ข้อความเดิม"></td>
+          <td class="stack-inline" data-label="ตรงทุกตัวอักษร"><input form="rule-form-{{ r.id }}" type="checkbox" name="exact" value="1" {% if r.exact %}checked{% endif %}
+                     aria-label="ตรงทุกตัวอักษร"></td>
+          <td data-label="ห้องที่ถูกต้อง"><input form="rule-form-{{ r.id }}" name="room_name" value="{{ r.room_name }}" maxlength="200" required
+                     aria-label="ห้องที่ถูกต้อง"></td>
+          <td data-label="ผู้รับผิดชอบที่เสนอ"><input form="rule-form-{{ r.id }}" name="holder_hint" value="{{ r.holder_hint or '' }}" maxlength="200"
+                     aria-label="ผู้รับผิดชอบที่เสนอ"></td>
+          <td data-label="หมายเหตุ"><input form="rule-form-{{ r.id }}" name="note" value="{{ r.note or '' }}" maxlength="200" aria-label="หมายเหตุ"></td>
+          <td class="stack-inline" data-label="ใช้งาน"><input form="rule-form-{{ r.id }}" type="checkbox" name="active" value="1" {% if r.active %}checked{% endif %}
+                     aria-label="ใช้งาน"></td>
+          <td class="actions">
+            <form id="rule-form-{{ r.id }}" method="post" action="/settings/rooms/rules/{{ r.id }}" class="inline">
+              {{ csrf_field }}
+              <button type="submit" class="btn btn-small btn-secondary">บันทึก</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <form method="post" action="/settings/rooms/rules" class="card inline-add">
+    {{ csrf_field }}
+    <div class="field"><label for="rule-new-text">ข้อความเดิม</label><input id="rule-new-text" name="match_text" required maxlength="200"></div>
+    <div class="field"><label for="rule-new-room">ห้องที่ถูกต้อง</label><input id="rule-new-room" name="room_name" required maxlength="200"></div>
+    <div class="field"><label for="rule-new-holder">ผู้รับผิดชอบที่เสนอ</label><input id="rule-new-holder" name="holder_hint" maxlength="200"></div>
+    <div class="field"><label for="rule-new-note">หมายเหตุ</label><input id="rule-new-note" name="note" maxlength="200"></div>
+    <label class="check"><input type="checkbox" name="exact" value="1"><span>ตรงทุกตัวอักษร</span></label>
+    <button type="submit" class="btn">เพิ่ม</button>
+  </form>
+</section>
+
+<section aria-labelledby="lists-title">
+  <h2 id="lists-title" class="section-title">ตัวย่อและคำที่ใช้ตรวจ</h2>
+  {% if errors %}<div class="form-error" role="alert"><p class="review-title">บันทึกไม่ได้</p>
+    <ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul></div>{% endif %}
+  <form method="post" action="/settings/rooms/lists" class="card edit-form">
+    {{ csrf_field }}
+    <div class="field">
+      <label for="abbr">ตัวย่อ (บรรทัดละ 1 คู่ “ตัวย่อ = คำเต็ม”)</label>
+      <textarea id="abbr" name="abbr" class="settings-textarea" aria-describedby="abbr-hint">{{ values.abbr }}</textarea>
+      <p class="hint" id="abbr-hint">ต่อท้าย “(ท้ายคำ)” ถ้าให้ขยายเฉพาะเมื่ออยู่ท้ายคำ เช่น “อ. = อำเภอ (ท้ายคำ)”
+        ใช้แก้คำสะกดผิดได้ด้วย เช่น “หัอง = ห้อง”</p>
+    </div>
+    <div class="field">
+      <label for="roles">คำที่บอกว่าเป็นตำแหน่งหรือคน (บรรทัดละคำ)</label>
+      <textarea id="roles" name="roles" class="settings-textarea" aria-describedby="roles-hint">{{ values.roles }}</textarea>
+      <p class="hint" id="roles-hint">ข้อความที่มีคำเหล่านี้ขึ้นต้นคำ และไม่มีคำบอกสถานที่ด้านล่างเลย จะติดป้าย
+        “อาจเป็นผู้รับผิดชอบ ไม่ใช่ห้อง” และไม่ติ๊กให้ก่อน</p>
+    </div>
+    <div class="field">
+      <label for="places_text">คำที่บอกว่าเป็นสถานที่ (บรรทัดละคำ)</label>
+      <textarea id="places_text" name="places_text" class="settings-textarea">{{ values.places }}</textarea>
+    </div>
+    <div class="form-actions"><button type="submit" class="btn">บันทึก</button></div>
+  </form>
+</section>
+{% endblock %}

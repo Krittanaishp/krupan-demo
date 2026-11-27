@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}ต้องปรับฐานข้อมูลก่อน{% endblock %}
+{% block content %}
+<div class="page-head"><h1>ต้องปรับโครงสร้างฐานข้อมูลก่อน</h1></div>
+<div class="card">
+  <p>ฐานข้อมูลนี้ยังไม่มีโครงสร้างที่หน้านี้ต้องใช้ ให้ผู้ดูแลระบบปิดโปรแกรมแล้วรันคำสั่งนี้ในโฟลเดอร์โปรแกรม 1 ครั้ง
+     (ระบบสำรองฐานข้อมูลไว้ใน backups\ ให้ก่อน)</p>
+  {% if pending %}<p>migration ที่ยังค้าง: <strong>{{ pending | join(", ") }}</strong></p>{% endif %}
+  <p>เครื่องที่ติดตั้งด้วยชุดติดตั้ง: ดับเบิลคลิก “อัปเดต.bat” ของเวอร์ชันล่าสุด หรือรันในโฟลเดอร์โปรแกรม</p>
+  <pre class="code-block">.venv\Scripts\python.exe scripts\{{ script or "migrate_005.py" }}</pre>
+  <p>เครื่องที่ใช้พัฒนา</p>
+  <pre class="code-block">uv run python scripts/{{ script or "migrate_005.py" }}</pre>
+</div>
+{% endblock %}

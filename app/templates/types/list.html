@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}ประเภทครุภัณฑ์{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>ประเภทครุภัณฑ์</h1>
+  <p class="muted">
+    ทั้งหมด {{ n_all }} ประเภท · ชื่อร่าง {{ n_draft }} ประเภท
+    (ระบบเดาจากชื่อรายการที่พบบ่อยที่สุด ยังไม่มีคนยืนยัน)
+  </p>
+  <p class="filter-links">
+    {% if only_draft %}<a href="/types">แสดงทุกประเภท</a>{% else %}<a href="/types?draft=1">แสดงเฉพาะชื่อร่าง</a>{% endif %}
+  </p>
+  {% if not can_edit %}
+    <p class="hint"><a href="/login?next=/types">เข้าสู่ระบบ</a> ด้วยบัญชี editor เพื่อแก้ชื่อประเภท</p>
+  {% endif %}
+</div>
+
+{% if rows %}
+<div class="table-wrap">
+  <table class="assets types-table stack-table">
+    <thead>
+      <tr>
+        <th scope="col">รหัส</th>
+        <th scope="col">หมวด</th>
+        <th scope="col">ชื่อประเภท</th>
+        <th scope="col" class="num">จำนวนชิ้น</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in rows %}{% include "types/_row.html" %}{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty"><p>ไม่มีประเภทที่เป็นชื่อร่างแล้ว</p></div>
+{% endif %}
+{% endblock %}

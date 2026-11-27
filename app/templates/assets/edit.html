@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block title %}แก้ไข {{ a.reg_no or a.temp_code }}{% endblock %}
+{% macro err(name) %}{% if errors.get(name) %}<p class="field-error" id="{{ name }}-error">{{ errors[name] }}</p>{% endif %}{% endmacro %}
+{% macro invalid(name) %}{% if errors.get(name) %}aria-invalid="true" aria-describedby="{{ name }}-error"{% endif %}{% endmacro %}
+{% block content %}
+<a class="back" href="{{ next }}">‹ ยกเลิก ไม่บันทึก</a>
+
+<div class="detail-head">
+  <div>
+    <p class="detail-reg">{{ a.reg_no or a.temp_code }}{% if a.temp_code and a.reg_no %} · รหัสชั่วคราว {{ a.temp_code }}{% endif %}</p>
+    <h1>แก้ไขข้อมูลครุภัณฑ์</h1>
+  </div>
+</div>
+
+{% if errors %}
+<div class="form-error" role="alert">
+  <p class="review-title">บันทึกไม่ได้ ตรวจช่องที่มีข้อความสีแดง ({{ errors | length }} ช่อง)</p>
+</div>
+{% endif %}
+
+{% if a.needs_review %}
+<div class="review-box" role="note">
+  <p class="review-title">ต้องตรวจสอบ</p>
+  <ul>{% for item in a.needs_review.split(", ") %}<li>{{ item }}</li>{% endfor %}</ul>
+  <p class="hint">ใส่ราคา เลขทะเบียน หรือแก้วันที่แล้ว ระบบเอาเรื่องนั้นออกให้เอง
+    เรื่องอื่น (เช่นเลขซ้ำในชีต) ไปกด “ตรวจแล้ว” ที่หน้ารอตรวจสอบ</p>
+</div>
+{% endif %}
+
+<form method="post" action="/assets/{{ a.id }}/edit" class="edit-form" novalidate>
+  {{ csrf_field }}
+  <input type="hidden" name="next" value="{{ next }}">
+
+  <section class="card">
+    <h2>ข้อมูลครุภัณฑ์</h2>
+    <div class="form-grid">
+      <div class="field span-2">
+        <label for="reg_no">เลขทะเบียน</label>
+        <input id="reg_no" name="reg_no" value="{{ form.reg_no }}" placeholder="ปค.99-9999-1-1306-0004"
+               autocomplete="off" spellcheck="false" {{ invalid('reg_no') }}>
+        {% if a.temp_code %}<p class="hint">เว้นว่างได้ (ใช้รหัสชั่วคราว {{ a.temp_code }}) ถ้าใส่เลขทะเบียน ระบบจะจดรหัสชั่วคราวไว้ในหมายเหตุ เพราะ QR ที่ติดไว้ยังใช้รหัสเดิม</p>{% endif %}
+        {{ err('reg_no') }}
+      </div>
+      <div class="field span-2">
+        <label for="name">ชื่อรายการ</label>
+        <input id="name" name="name" value="{{ form.name }}" required {{ invalid('name') }}>
+        {{ err('name') }}
+      </div>
+      <div class="field span-2">
+        <label for="type_code">ประเภท</label>
+        <select id="type_code" name="type_code" {{ invalid('type_code') }}>
+          <option value="">— ไม่ระบุ —</option>
+          {% for t in types %}
+            <option value="{{ t.code }}" {% if form.type_code == t.code %}selected{% endif %}>{{ t.code }} · {{ t.name or "" }}</option>
+          {% endfor %}
+        </select>
+        {{ err('type_code') }}
+      </div>
+      <div class="field span-2">
+        <label for="details">รายละเอียด (ยี่ห้อ รุ่น หมายเลขเครื่อง)</label>
+        <input id="details" name="details" value="{{ form.details }}">
+      </div>
+      <div class="field">
+        <label for="gfmis_code">รหัส GFMIS</label>
+        <input id="gfmis_code" name="gfmis_code" value="{{ form.gfmis_code }}" spellcheck="false">
+      </div>
+      <div class="field">
+        {% if a.status == "จำหน่ายแล้ว" %}
+        <label for="status">สถานะ</label>
+        <input id="status" value="จำหน่ายแล้ว" readonly aria-describedby="status-hint">
+        <p class="hint" id="status-hint">อ่านอย่างเดียว ·
+          <a href="/assets/{{ a.id }}#disposal">ดูบันทึกการจำหน่าย{% if disposal %} ({{ disposal.disposed_at | thai_date }}{% if disposal.doc_ref %} หนังสือ {{ disposal.doc_ref }}{% endif %}){% endif %}</a>
+          · ถ้าบันทึกผิด admin ยกเลิกการจำหน่ายได้ที่หน้านั้น</p>
+        {% else %}
+        <label for="status">สถานะ</label>
+        <select id="status" name="status" {{ invalid('status') }}>
+          {% for s in statuses %}<option value="{{ s }}" {% if form.status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+        </select>
+        <p class="hint" id="status-hint">จะจำหน่าย ใช้ปุ่ม “บันทึกการจำหน่าย” ในหน้ารายละเอียด</p>
+        {{ err('status') }}
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>การได้มา</h2>
+    <fieldset class="field date-field" {% if errors.get('acquired_date') %}aria-describedby="acquired_date-error"{% endif %}>
+      <legend>วันที่ได้มา (พ.ศ.)</legend>
+      {# segmented control: ทั้งก้อนเป็นพื้นที่กด (สูง 44px) วงกลมขนาดเดียวกันทุกตัว ข้อความไม่ตกบรรทัด ที่ไม่พอทั้งตัวเลือกขึ้นบรรทัดใหม่ #}
+      <div class="seg" role="radiogroup" aria-label="รู้วันที่ได้มาแค่ไหน">
+        {% for value, label in [("day", "รู้วันที่"), ("month", "รู้แค่เดือนและปี"), ("year", "รู้แค่ปี"), ("none", "ไม่ทราบวันที่")] %}
+        <label class="seg-opt"><input type="radio" name="date_precision" value="{{ value }}"
+               {% if form.date_precision == value %}checked{% endif %}><span>{{ label }}</span></label>
+        {% endfor %}
+      </div>
+      <div class="date-parts">
+        <div class="field" data-part="day">
+          <label for="date_day">วัน</label>
+          <input id="date_day" name="date_day" value="{{ form.date_day }}" inputmode="numeric" maxlength="2" class="w-day">
+        </div>
+        <div class="field" data-part="month">
+          <label for="date_month">เดือน</label>
+          <select id="date_month" name="date_month">
+            <option value="">—</option>
+            {% for m in THAI_MONTHS_ABBR %}<option value="{{ loop.index }}" {% if form.date_month == loop.index | string %}selected{% endif %}>{{ m }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field" data-part="year">
+          <label for="date_year">ปี พ.ศ.</label>
+          <input id="date_year" name="date_year" value="{{ form.date_year }}" inputmode="numeric" maxlength="4"
+                 placeholder="2567" class="w-year">
+        </div>
+      </div>
+      {{ err('acquired_date') }}
+      {% if a.acquired_date_raw %}<p class="hint">ตามต้นฉบับ: {{ a.acquired_date_raw }}</p>{% endif %}
+    </fieldset>
+
+    <div class="form-grid">
+      <div class="field">
+        <label for="fiscal_year">ปีงบประมาณ (พ.ศ.)</label>
+        <input id="fiscal_year" name="fiscal_year" value="{{ form.fiscal_year }}" inputmode="numeric" maxlength="4" {{ invalid('fiscal_year') }}>
+        {{ err('fiscal_year') }}
+      </div>
+      <div class="field">
+        <label for="unit_price">ราคาต่อหน่วย (บาท)</label>
+        <input id="unit_price" name="unit_price" value="{{ form.unit_price }}" inputmode="decimal" {{ invalid('unit_price') }}>
+        <p class="hint">เว้นว่างถ้าไม่ทราบราคา (ระบบจะไม่บันทึกเป็น 0)</p>
+        {{ err('unit_price') }}
+      </div>
+      <div class="field span-2">
+        <label for="funding_source">วิธีการได้มา / แหล่งเงิน</label>
+        <input id="funding_source" name="funding_source" value="{{ form.funding_source }}">
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>ที่ตั้ง ผู้รับผิดชอบ และหมายเหตุ</h2>
+    <div class="form-grid">
+      <div class="field span-2">
+        <label for="location_id">ห้อง</label>
+        <select id="location_id" name="location_id" {{ invalid('location_id') }}>
+          <option value="">— ยังไม่จัดเข้าห้อง —</option>
+          {% for l in locations %}
+            <option value="{{ l.id }}" {% if form.location_id == l.id | string %}selected{% endif %}>{{ l.name }}{% if not l.active %} (ปิดใช้งาน){% endif %}</option>
+          {% endfor %}
+        </select>
+        <p class="hint">เปลี่ยนห้องหรือผู้รับผิดชอบแล้ว ระบบบันทึกประวัติการย้ายให้ (วันที่วันนี้) · <a href="/places">จัดการห้อง</a></p>
+        {{ err('location_id') }}
+      </div>
+      <div class="field span-2">
+        <label for="holder_id">ผู้รับผิดชอบ</label>
+        <select id="holder_id" name="holder_id" {{ invalid('holder_id') }}>
+          <option value="">— ไม่ระบุ —</option>
+          {% for s in staff %}
+            <option value="{{ s.id }}" {% if form.holder_id == s.id | string %}selected{% endif %}>{{ s | staff_label }}{% if not s.active %} (ปิดใช้งาน){% endif %}</option>
+          {% endfor %}
+        </select>
+        <p class="hint"><a href="/places/staff">จัดการรายชื่อผู้รับผิดชอบ</a></p>
+        {{ err('holder_id') }}
+      </div>
+      <div class="field span-2">
+        <label for="location_text">ใช้ประจำที่ (ข้อความเดิมจากไฟล์ Excel)</label>
+        <input id="location_text" name="location_text" value="{{ form.location_text }}">
+      </div>
+      <div class="field span-2">
+        <label for="note">หมายเหตุ</label>
+        <textarea id="note" name="note" rows="3">{{ form.note }}</textarea>
+      </div>
+    </div>
+  </section>
+
+  <div class="form-actions">
+    <button type="submit" class="btn">บันทึก</button>
+    <a href="{{ next }}">ยกเลิก</a>
+  </div>
+</form>
+
+{% endblock %}

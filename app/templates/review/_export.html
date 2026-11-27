@@ -1,0 +1,4 @@
+<div class="head-actions" id="review-export" {% if oob %}hx-swap-oob="true"{% endif %}>
+  <a class="btn btn-secondary" href="{{ export_url }}" download>{% if all_mode %}Export ผลค้นหา (Excel){% else %}Export กลุ่มนี้ (Excel){% endif %}</a>
+  <a class="btn btn-secondary" href="{{ export_all_url }}" download>Export ทุกกลุ่ม (Excel)</a>
+</div>

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% if sandbox_mode() %}[ทดลอง] {% endif %}{% block title %}ครุภัณฑ์{% endblock %}{% if org.display %} · {{ org.display }}{% endif %}</title>
+  <link rel="icon" href="data:,">
+  <link rel="preload" href="/static/fonts/sarabun-thai-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="{{ static_url('css/app.css') }}">
+  <script src="{{ static_url('js/doc.js') }}" defer></script>
+</head>
+{# หน้าสแกน QR: เบา ไม่มีเมนูเต็ม ไม่ใช้ JS (ฟอร์มธรรมดา) เพื่อให้เปิดเร็วบนมือถือ #}
+<body class="q-body">
+  {% include "_sandbox_bar.html" %}
+  <header class="q-top">
+    <a href="/assets" class="q-brand">ทะเบียนครุภัณฑ์{% if org.display %} · {{ org.display }}{% endif %}</a>
+    {% if user %}
+      <span class="q-user">{{ user.display_name or user.username }}</span>
+    {% else %}
+      <a class="q-user" href="/login?next={{ request.url.path | urlencode }}">เข้าสู่ระบบ</a>
+    {% endif %}
+  </header>
+  {% include "_net_warning.html" %}
+  {% include "_backup_warning.html" %}
+  <main class="q-main">
+    {% if flash %}<p class="flash" role="status">{{ flash }}</p>{% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

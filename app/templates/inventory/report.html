@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <title>รายงานผลการตรวจสอบพัสดุ ปีงบประมาณ {{ check.fiscal_year }}</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="{{ static_url('css/report-fonts.css') }}">
+  <link rel="stylesheet" href="{{ static_url('css/print-doc.css') }}">
+  <script src="{{ static_url('js/doc.js') }}" defer></script>
+</head>
+<body class="doc">
+  <div class="doc-toolbar">
+    <a href="/inventory/{{ check.id }}">‹ ตรวจสอบพัสดุประจำปี {{ check.fiscal_year }}</a>
+    <button type="button" class="btn" data-print>พิมพ์</button>
+    <a class="btn btn-secondary" href="/inventory/{{ check.id }}/report.xlsx">ดาวน์โหลด Excel</a>
+    <p class="hint">ตั้งค่าการพิมพ์: กระดาษ A4 แนวตั้ง สเกล 100% ปิดหัวกระดาษและท้ายกระดาษ
+      {% if not check.closed_at %}· รอบนี้ยังไม่ปิด รายงานนี้เป็นฉบับร่าง{% endif %}</p>
+    {% include "_font_check.html" %}
+  </div>
+
+  {% macro money(v) %}{{ "{:,.2f}".format(v) }}{% endmacro %}
+  {% set raw_note = "* ยังไม่ได้จัดเข้าห้องในระบบ แสดงข้อความ “ใช้ประจำที่” ตามทะเบียนเดิม (Excel)" %}
+  {% macro room(r) %}{% if r.room_raw %}<span class="raw">{{ r.room_label }}</span> *{% else %}{{ r.room_label }}{% endif %}{% endmacro %}
+  {% macro price(r) %}{% if r.unit_price is not none %}{{ money(r.unit_price | float) }}{% else %}ไม่ทราบ{% endif %}{% endmacro %}
+
+  <div class="doc-page">
+    <h1>รายงานผลการตรวจสอบพัสดุประจำปีงบประมาณ {{ check.fiscal_year }}</h1>
+    <p class="doc-sub">{{ office }}</p>
+    <p class="doc-meta">{% if check.closed_at %}ตรวจระหว่างวันที่ {{ check.started_at | thai_date }} ถึง {{ check.closed_at | thai_date }}
+      {% else %}เริ่มตรวจวันที่ {{ check.started_at | thai_date }} <strong>(ฉบับร่าง ยังไม่ปิดรอบ)</strong>{% endif %}</p>
+
+    <p>คณะกรรมการตรวจสอบพัสดุได้ตรวจสอบครุภัณฑ์ที่มีอยู่ในทะเบียน ณ วันเปิดรอบ (ทุกรายการที่สถานะไม่ใช่ “จำหน่ายแล้ว”)
+      จำนวน {{ "{:,}".format(total.n) }} รายการ ผลการตรวจสอบสรุปได้ดังนี้</p>
+
+    <table>
+      <thead><tr><th>ผลการตรวจ</th><th class="w-16">จำนวน (รายการ)</th><th class="w-22">มูลค่า (บาท)</th>
+        <th class="w-26">ไม่ทราบมูลค่า</th></tr></thead>
+      <tbody>
+        {% for label, s in summary %}
+        <tr><td>{{ label }}</td><td class="c">{{ "{:,}".format(s.n) }}</td><td class="n">{{ money(s.value) }}</td>
+          <td class="c">{% if s.unknown %}ไม่ทราบมูลค่า {{ s.unknown }} รายการ{% else %}-{% endif %}</td></tr>
+        {% endfor %}
+        <tr><td><strong>รวม</strong></td><td class="c"><strong>{{ "{:,}".format(total.n) }}</strong></td>
+          <td class="n"><strong>{{ money(total.value) }}</strong></td>
+          <td class="c">{% if total.unknown %}ไม่ทราบมูลค่า {{ total.unknown }} รายการ{% else %}-{% endif %}</td></tr>
+      </tbody>
+    </table>
+    <p class="small">หมายเหตุ: มูลค่ารวมเฉพาะรายการที่ทราบราคา รายการที่ไม่ทราบราคาแสดงจำนวนแยกไว้ ไม่ได้นับเป็น 0 บาท
+      · พบนอกห้องที่บันทึกไว้ {{ outside | length }} รายการ
+      {% if unregistered %}· พบของที่ไม่มีในทะเบียน {{ unregistered | length }} รายการ (ไม่นับรวมในตารางข้างบน){% endif %}</p>
+
+    {% include "inventory/_signs.html" %}
+
+    {% for title, rows in (("ตารางแนบ 1 รายการที่พบชำรุด", broken), ("ตารางแนบ 2 รายการที่ไม่พบ", missing)) %}
+    <h2>{{ title }} ({{ rows | length }} รายการ)</h2>
+    <table>
+      <thead><tr><th class="w-6">ลำดับ</th><th class="w-23">หมายเลขทะเบียน</th><th>รายการ</th>
+        <th class="w-17">ห้องตามทะเบียน</th><th class="w-12">ราคา (บาท)</th><th class="w-12">หมายเหตุ</th></tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr><td class="c">{{ loop.index }}</td><td class="code">{{ r.code }}</td><td>{{ r.name }}</td><td>{{ room(r) }}</td>
+          <td class="n">{{ price(r) }}</td><td>{{ r.note or "" }}</td></tr>
+        {% else %}
+        <tr><td colspan="6" class="c">ไม่มีรายการ</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if rows | selectattr("room_raw") | list %}<p class="small">{{ raw_note }}</p>{% endif %}
+    {% endfor %}
+
+    <h2>ตารางแนบ 3 รายการที่พบนอกห้องที่บันทึกไว้ ({{ outside | length }} รายการ)</h2>
+    <table>
+      <thead><tr><th class="w-6">ลำดับ</th><th class="w-23">หมายเลขทะเบียน</th><th>รายการ</th>
+        <th class="w-17">ห้องตามทะเบียน</th><th class="w-17">ห้องที่พบ</th><th class="w-11">ย้ายในทะเบียน</th></tr></thead>
+      <tbody>
+        {% for r in outside %}
+        <tr><td class="c">{{ loop.index }}</td><td class="code">{{ r.code }}</td><td>{{ r.name }}</td><td>{{ room(r) }}</td>
+          <td>{{ r.found_location_name }}</td><td class="c">{{ "ย้ายแล้ว" if r.moved else "ยังไม่ย้าย" }}</td></tr>
+        {% else %}
+        <tr><td colspan="6" class="c">ไม่มีรายการ</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% if unregistered %}
+    <h2>รายการที่พบแต่ไม่มีในทะเบียน ({{ unregistered | length }} รายการ)</h2>
+    <table>
+      <thead><tr><th class="w-7">ลำดับ</th><th class="w-16">รหัสชั่วคราว</th><th>รายการ</th>
+        <th class="w-20">ห้องที่พบ</th><th class="w-14">สภาพ</th><th class="w-18">หมายเหตุ</th></tr></thead>
+      <tbody>
+        {% for r in unregistered %}
+        <tr><td class="c">{{ loop.index }}</td><td class="code">{{ r.code }}</td><td>{{ r.name }}</td>
+          <td>{{ r.found_location_name or "—" }}</td><td class="c">{{ r.result }}</td><td>{{ r.note or "" }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    {% if broken or missing or outside or unregistered %}{% include "inventory/_signs.html" %}{% endif %}
+  </div>
+</body>
+</html>

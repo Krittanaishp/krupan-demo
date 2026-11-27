@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}{{ "แก้ไขรายการวัสดุ" if item else "เพิ่มรายการวัสดุ" }}{% endblock %}
+{% macro err(name) %}{% if errors[name] %}<p class="field-error" id="err-{{ name }}">{{ errors[name] }}</p>{% endif %}{% endmacro %}
+{% block content %}
+<a class="back" href="{{ '/supplies/items/' ~ item.id if item else '/supplies/items' }}">← {{ item.name if item else "รายการวัสดุ" }}</a>
+<div class="page-head">
+  <h1>{{ "แก้ไขรายการวัสดุ" if item else "เพิ่มรายการวัสดุ" }}</h1>
+  <p class="muted">ยอดคงเหลือแก้ในหน้านี้ไม่ได้ ยอดมาจากรายการรับ–จ่ายและการปรับยอดหลังตรวจนับเท่านั้น</p>
+</div>
+
+{% if not cats %}
+<div class="alert-warn">ยังไม่มีหมวดวัสดุ <a href="/supplies/categories">เพิ่มหมวดก่อน</a></div>
+{% endif %}
+
+<form method="post" class="card edit-form" novalidate>
+  {{ csrf_field }}
+  {% if errors.form %}<p class="form-error" role="alert">{{ errors.form }}</p>{% elif errors %}<p class="form-error" role="alert">ตรวจช่องที่มีข้อความสีแดง</p>{% endif %}
+  <div class="form-grid">
+    <div class="field">
+      <label for="category_id">หมวด</label>
+      <select id="category_id" name="category_id" {% if errors.category_id %}aria-invalid="true"{% endif %}>
+        <option value="">เลือกหมวด</option>
+        {% for c in cats %}<option value="{{ c.id }}" {% if form.category_id|string == c.id|string %}selected{% endif %}>{{ c.name }}{% if not c.active %} (ปิดใช้งาน){% endif %}</option>{% endfor %}
+      </select>
+      {{ err("category_id") }}
+    </div>
+    <div class="field span-2">
+      <label for="name">ชื่อรายการ</label>
+      <input id="name" name="name" value="{{ form.name or '' }}" maxlength="200" placeholder="เช่น ปากกาลูกลื่น สีน้ำเงิน"
+             {% if errors.name %}aria-invalid="true"{% endif %} autofocus>
+      {{ err("name") }}
+    </div>
+    <div class="field">
+      <label for="base_unit">หน่วยหลัก (หน่วยที่จ่าย)</label>
+      <input id="base_unit" name="base_unit" value="{{ form.base_unit or '' }}" maxlength="30" placeholder="เช่น ด้าม รีม ตลับ"
+             {% if errors.base_unit %}aria-invalid="true"{% endif %}>
+      {{ err("base_unit") }}
+    </div>
+    <div class="field">
+      <label for="reorder_point">จุดสั่งซื้อ: เตือนเมื่อเหลือต่ำกว่า (หน่วยหลัก)</label>
+      <input id="reorder_point" name="reorder_point" value="{{ form.reorder_point if form.reorder_point is not none else '' }}"
+             inputmode="numeric" placeholder="เว้นว่างได้" {% if errors.reorder_point %}aria-invalid="true"{% endif %}>
+      <p class="hint">เช่น ใส่ 10 = เหลือ 9 หรือน้อยกว่าจึงขึ้นเตือน (เหลือ 10 พอดียังไม่เตือน)</p>
+      {{ err("reorder_point") }}
+    </div>
+    <div class="field span-2">
+      <label for="note">หมายเหตุ</label>
+      <input id="note" name="note" value="{{ form.note or '' }}" maxlength="500">
+    </div>
+  </div>
+
+  <fieldset class="field unit-fields">
+    <legend>หน่วยใหญ่ที่ใช้ตอนรับเข้า (ไม่บังคับ) เช่น กล่อง = 5 รีม</legend>
+    {% if units %}
+    <ul class="unit-list">
+      {% for u in units %}
+      <li {% if not u.active %}class="muted"{% endif %}>1 {{ u.name }} = {{ "{:,}".format(u.factor) }} {{ item.base_unit }}{% if not u.active %} (ปิดใช้){% endif %}
+        <button type="submit" form="unit-{{ u.id }}" class="btn btn-small btn-secondary">{{ "ปิดใช้" if u.active else "เปิดใช้" }}</button>
+      </li>
+      {% endfor %}
+    </ul>
+    <p class="hint">อัตราแปลงของหน่วยที่มีอยู่แก้ไม่ได้ (ประวัติรับเข้าอ้างถึง) ถ้าเปลี่ยนจริงให้ปิดใช้หน่วยเดิมแล้วเพิ่มหน่วยชื่อใหม่</p>
+    {% endif %}
+    {% for i in range(1, 4) %}
+    <div class="unit-row">
+      <label for="unit_name_{{ i }}">ชื่อหน่วย{% if units %}ใหม่{% endif %} {{ i }}</label>
+      <input id="unit_name_{{ i }}" name="unit_name_{{ i }}" value="{{ form['unit_name_' ~ i] or '' }}" maxlength="30" placeholder="เช่น กล่อง">
+      <label for="unit_factor_{{ i }}">= กี่หน่วยหลัก</label>
+      <input id="unit_factor_{{ i }}" name="unit_factor_{{ i }}" value="{{ form['unit_factor_' ~ i] or '' }}" inputmode="numeric" placeholder="เช่น 5"
+             {% if errors['unit_' ~ i] %}aria-invalid="true"{% endif %}>
+      {{ err("unit_" ~ i) }}
+    </div>
+    {% endfor %}
+  </fieldset>
+
+  <div class="form-actions">
+    <button type="submit" class="btn">บันทึก</button>
+    {% if not item %}<button type="submit" name="again" value="1" class="btn btn-secondary">บันทึกแล้วเพิ่มรายการต่อ</button>{% endif %}
+    <a href="{{ '/supplies/items/' ~ item.id if item else '/supplies/items' }}">ยกเลิก</a>
+  </div>
+</form>
+{% for u in units %}
+<form method="post" action="/supplies/units/{{ u.id }}/active" id="unit-{{ u.id }}" hidden>
+  {{ csrf_field }}<input type="hidden" name="active" value="{{ 0 if u.active else 1 }}">
+</form>
+{% endfor %}
+{% endblock %}

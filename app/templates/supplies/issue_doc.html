@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}ใบเบิก #{{ r.id }}{% endblock %}
+{% block content %}
+<a class="back" href="/supplies/issues">← ใบเบิกทั้งหมด</a>
+<div class="detail-head">
+  <div>
+    <p class="detail-reg">ใบเบิกวัสดุ #{{ r.id }}{% if r.doc_no %} · เลขที่ {{ r.doc_no }}{% endif %}{% if r.copied_from_id %} · คัดลอกจาก <a href="/supplies/issues/{{ r.copied_from_id }}">#{{ r.copied_from_id }}</a>{% endif %}</p>
+    <h1>{{ r.department }} · {{ r.requester_name }}</h1>
+  </div>
+  <div class="head-actions">
+    {% if r.cancelled_at %}<span class="badge badge-muted badge-lg">ยกเลิกแล้ว</span>{% else %}<span class="badge badge-ok badge-lg">จ่ายแล้ว</span>{% endif %}
+    {% if user and user.can_edit %}
+      {% if saved %}<a class="btn" href="/supplies/issue">บันทึกใบเบิกถัดไป</a>{% endif %}
+      {% if r.cancelled_at %}<a class="btn btn-secondary" href="/supplies/issue?copy={{ r.id }}">คัดลอกเป็นใบใหม่</a>{% endif %}
+    {% endif %}
+  </div>
+</div>
+
+{% if r.cancelled_at %}
+<div class="alert-warn">ยกเลิกเมื่อ {{ r.cancelled_at | thai_datetime }} โดย {{ r.cancelled_name or r.cancelled_user }} · เหตุผล: {{ r.cancel_reason }}
+  · ยอดที่จ่ายไปคืนกลับเข้าคลังแล้ว{% if copies %} · บันทึกใหม่เป็น {% for c in copies %}<a href="/supplies/issues/{{ c.id }}">#{{ c.id }}</a>{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}</div>
+{% endif %}
+
+<section class="card">
+  <dl>
+    <dt>วันที่เบิก</dt><dd>{{ r.issue_date | thai_date }}</dd>
+    <dt>ผู้อนุมัติ</dt><dd>{{ r.approver_name }} · อนุมัติวันที่ {{ r.approved_date | thai_date }}</dd>
+    {% if r.note %}<dt>หมายเหตุ</dt><dd>{{ r.note }}</dd>{% endif %}
+    <dt>บันทึกโดย</dt><dd>{{ r.created_name or r.created_user }} · {{ r.created_at | thai_datetime }}</dd>
+  </dl>
+</section>
+
+<div class="table-wrap doc-lines">
+  <table class="assets supply-table stack-table">
+    <thead><tr><th scope="col">วัสดุ</th><th scope="col">หมวด</th><th scope="col" class="num">ขอ</th><th scope="col" class="num">จ่าย</th><th scope="col">หน่วย</th><th scope="col"></th></tr></thead>
+    <tbody>
+      {% for ln in lines %}
+      <tr>
+        <td class="stack-main name"><a href="/supplies/items/{{ ln.item_id }}">{{ ln.name }}</a></td>
+        <td data-label="หมวด">{{ ln.category }}</td>
+        <td class="num stack-inline" data-label="ขอ">{{ "{:,}".format(ln.requested_qty) }}</td>
+        <td class="num stack-inline" data-label="จ่าย"><strong>{{ "{:,}".format(ln.issued_qty) }}</strong></td>
+        <td class="stack-inline">{{ ln.base_unit }}</td>
+        <td class="stack-inline">{% if ln.issued_qty < ln.requested_qty %}<span class="badge badge-warn">{{ "ไม่มีของจ่าย" if ln.issued_qty == 0 else "จ่ายไม่ครบ" }}</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p class="hint">ไม่มียอดค้างจ่าย: ส่วนที่จ่ายไม่ครบ ถ้าฝ่ายยังต้องการให้เบิกใบใหม่เมื่อมีของ</p>
+
+{% if user and user.can_edit and not r.cancelled_at %}
+<details class="card cancel-box">
+  <summary>ยกเลิกใบเบิกนี้ (บันทึกผิด)</summary>
+  <form method="post" action="/supplies/issues/{{ r.id }}/cancel" class="edit-form">
+    {{ csrf_field }}
+    <p class="hint">ของที่จ่ายจากใบนี้จะคืนกลับเข้ายอดคงเหลือ ใบเดิมยังเก็บไว้พร้อมเหตุผล
+      · ยกเลิกแล้วกด “คัดลอกเป็นใบใหม่” เพื่อบันทึกใหม่โดยไม่ต้องกรอกทั้งหมด</p>
+    <div class="field"><label for="reason">เหตุผลที่ยกเลิก</label><input id="reason" name="reason" maxlength="500" required></div>
+    <div><button type="submit" class="btn btn-danger">ยืนยันยกเลิกใบเบิก #{{ r.id }}</button></div>
+  </form>
+</details>
+{% endif %}
+{% endblock %}

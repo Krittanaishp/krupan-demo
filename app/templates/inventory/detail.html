@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}ตรวจสอบพัสดุประจำปี {{ check.fiscal_year }}{% endblock %}
+{% block content %}
+<p class="back"><a href="/inventory">‹ รอบตรวจสอบพัสดุทั้งหมด</a></p>
+<div class="page-head page-head-row">
+  <div>
+    <h1>ตรวจสอบพัสดุประจำปีงบประมาณ {{ check.fiscal_year }}
+      {% if closed %}<span class="badge badge-muted">ปิดแล้ว {{ check.closed_at | thai_date }}</span>{% else %}<span class="badge badge-ok">เปิดอยู่</span>{% endif %}</h1>
+    <p class="muted">เริ่มตรวจ {{ check.started_at | thai_date }} ·
+      {% for name, role in committee %}{{ role }} {{ name }}{% if not loop.last %} · {% endif %}{% endfor %}</p>
+  </div>
+  <div class="head-actions">
+    {% if not closed %}
+    <a class="btn btn-secondary" href="/inventory/{{ check.id }}/found-new">พบของที่ไม่มีในทะเบียน</a>
+    {% endif %}
+    <a class="btn btn-secondary" href="/inventory/{{ check.id }}/report">รายงานผล{% if not closed %} (ฉบับร่าง){% endif %}</a>
+    {% if not closed %}<a class="btn" href="/inventory/{{ check.id }}/close">ปิดรอบ…</a>{% endif %}
+    {% if closed and user.is_admin and can_reopen %}<a class="btn btn-secondary" href="/inventory/{{ check.id }}/reopen">เปิดรอบกลับ…</a>{% endif %}
+  </div>
+</div>
+
+{% if reopens %}
+<section class="card inv-reopens">
+  <h2 class="card-title">ประวัติการเปิดรอบกลับ</h2>
+  <ul>{% for r in reopens %}<li>{{ r.reopened_at | thai_datetime }} โดย {{ r.who or "—" }} (เดิมปิดเมื่อ {{ r.closed_at_before | thai_date }}) · เหตุผล: {{ r.reason }}</li>{% endfor %}</ul>
+  {% if applied %}
+  <p><strong>ข้อเสนอที่กดยืนยันไปแล้ว {{ applied | length }} รายการ</strong> ระบบไม่ได้ย้อนกลับให้ ตรวจแล้วแก้เองที่หน้าครุภัณฑ์ถ้าจำเป็น</p>
+  <details><summary>ดูรายการ</summary>
+    <ul class="proposal-list">{% for a in applied %}<li><a href="/assets/{{ a.asset_id }}">{{ a.reg_no or a.temp_code }}</a> {{ a.name }}
+      <span class="muted">· {{ a.what }} · ตอนนี้: {{ a.status }}</span></li>{% endfor %}</ul>
+  </details>
+  {% endif %}
+</section>
+{% endif %}
+
+<section class="card inv-summary" aria-label="สรุปผล">
+  <p class="inv-total"><strong>ตรวจแล้ว {{ "{:,}".format(c.checked) }}</strong> / ทั้งหมด {{ "{:,}".format(c.total) }} ชิ้น ({{ c.pct }}%)</p>
+  <div class="progress progress-lg" role="progressbar" aria-valuemin="0" aria-valuemax="{{ c.total }}" aria-valuenow="{{ c.checked }}"
+       aria-label="ตรวจแล้ว {{ c.checked }} จาก {{ c.total }}"><span data-pct="{{ c.pct }}"></span></div>
+  <dl class="inv-stats">
+    <div><dt>พบ ใช้งานได้</dt><dd class="ok-text">{{ "{:,}".format(c.ok) }}</dd></div>
+    <div><dt>พบ ชำรุด</dt><dd class="warn-text">{{ "{:,}".format(c.broken) }}</dd></div>
+    <div><dt>ไม่พบ</dt><dd class="danger-text">{{ "{:,}".format(c.missing) }}</dd></div>
+    <div><dt>ยังไม่ตรวจ</dt><dd>{{ "{:,}".format(c.unchecked) }}</dd></div>
+    <div><dt>พบนอกห้องที่บันทึกไว้</dt><dd>{{ "{:,}".format(c.outside) }}</dd></div>
+  </dl>
+  {% if c.unregistered %}<p class="hint">พบของที่ไม่มีในทะเบียน {{ c.unregistered }} รายการ (เพิ่มเป็นรหัส TMP แล้ว ไม่นับรวมในตัวเลขข้างบน)</p>{% endif %}
+  {% if not closed and qr_enabled() %}<p class="hint">ตรวจด้วยมือถือ: สแกน QR บนสติกเกอร์ด้วยกล้องปกติ หน้าครุภัณฑ์จะมีกล่อง “ตรวจสอบพัสดุประจำปี {{ check.fiscal_year }}” อยู่บนสุด</p>{% endif %}
+</section>
+
+{% if closed %}
+<section id="proposals" class="inv-proposals">
+  <h2 class="section-title">ข้อเสนอหลังปิดรอบ</h2>
+  <p class="muted">ระบบไม่เปลี่ยนทะเบียนเอง ตรวจรายการแล้วกดยืนยันทีละกลุ่ม ทุกการเปลี่ยนแปลงบันทึกในประวัติของครุภัณฑ์แต่ละชิ้น</p>
+  {% for key, p in PROPOSALS.items() %}
+  {% set rows = proposals[key] %}
+  <div class="card proposal">
+    <h3>{{ "กขค"[loop.index0] }}) {{ p.title }} <span class="count-pill">{{ rows | length }}</span></h3>
+    <p class="muted">{% if key == "missing" %}ไม่เปลี่ยนสถานะเอง: การบันทึกว่าสูญหายต้องเป็นการตัดสินใจของกรรมการ
+      ระบบจะติดป้าย “{{ missing_flag }}” ไว้ในหน้ารอตรวจสอบ{% else %}ข้อเสนอ: {{ p.action }}{% endif %}</p>
+    {% if rows %}
+    <form method="post" action="/inventory/{{ check.id }}/proposals/{{ key }}">
+      {{ csrf_field }}
+      <details>
+        <summary>ดูรายการ {{ rows | length }} ชิ้น</summary>
+        <ul class="proposal-list">
+          {% for r in rows %}<li><input type="hidden" name="ids" value="{{ r.asset_id }}">
+            <a href="/assets/{{ r.asset_id }}">{{ r.reg_no or r.temp_code }}</a> {{ r.name }}
+            <span class="muted">· {{ r.expected_location_name or r.location_text or "ไม่ระบุห้อง" }} · ทะเบียน: {{ r.status }}</span>
+            {% if r.note %}<span class="muted">· {{ r.note }}</span>{% endif %}</li>{% endfor %}
+        </ul>
+      </details>
+      <button type="submit" class="btn">ยืนยัน: {{ p.action }} ({{ rows | length }} ชิ้น)</button>
+    </form>
+    {% else %}
+    <p class="ok-text">ไม่มีรายการที่ต้องทำ</p>
+    {% endif %}
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if buildings %}
+<h2 class="section-title">พิมพ์ใบรายการทีละอาคาร</h2>
+<p class="muted small">ห้องในอาคารเดียวกันต่อกัน ห้องละหน้า เรียงตามชื่อห้อง (ใช้อาคารปัจจุบันของห้อง ตั้งได้ที่แท็บห้อง)</p>
+<ul class="inv-buildings">
+  {% for b in buildings %}
+  <li><a href="/inventory/{{ check.id }}/buildings/{{ b.key }}/print">{{ b.name }}</a>
+    <span class="muted small">{{ b.rooms | length }} ห้อง · {{ b.rooms | sum(attribute="total") }} รายการ{% if b.holder_focus %} · เน้นคอลัมน์ผู้รับผิดชอบ{% endif %}</span></li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+<h2 class="section-title">ความคืบหน้ารายห้อง</h2>
+<p class="muted small">ห้องตามทะเบียน ณ วันเปิดรอบ · กดชื่อห้องเพื่อดูรายการที่ยังไม่ได้ตรวจ</p>
+<div class="inv-rooms">
+  {% for r in rooms %}
+  <details class="inv-room" hx-get="/inventory/{{ check.id }}/rooms/{{ r.key }}/unchecked" hx-trigger="toggle once"
+           hx-target="find .inv-room-body" hx-swap="innerHTML">
+    <summary>
+      <span class="inv-room-name">{{ r.name }}</span>
+      <span class="inv-room-count">{{ r.checked }} / {{ r.total }}</span>
+      <span class="progress" aria-hidden="true"><span data-pct="{{ r.pct }}"></span></span>
+    </summary>
+    <div class="inv-room-links">
+      {% if not closed %}<a href="/inventory/{{ check.id }}/rooms/{{ r.key }}">กรอกผลจากใบรายการ</a>{% else %}<a href="/inventory/{{ check.id }}/rooms/{{ r.key }}">ดูผลรายชิ้น</a>{% endif %}
+      <a href="/inventory/{{ check.id }}/rooms/{{ r.key }}/print">พิมพ์ใบรายการ</a>
+      {% if r.broken %}<span class="warn-text">ชำรุด {{ r.broken }}</span>{% endif %}
+      {% if r.missing %}<span class="danger-text">ไม่พบ {{ r.missing }}</span>{% endif %}
+      {% if r.outside %}<span>พบนอกห้อง {{ r.outside }}</span>{% endif %}
+    </div>
+    <div class="inv-room-body"><p class="muted">กำลังโหลด…</p></div>
+  </details>
+  {% endfor %}
+</div>
+
+{% if not closed %}
+<details class="card inv-edit" {% if edit_open %}open{% endif %}>
+  <summary>แก้ไขข้อมูลรอบ (ปีงบประมาณ วันที่เริ่ม คณะกรรมการ)</summary>
+  <form method="post" action="/inventory/{{ check.id }}/edit" class="form">
+    {{ csrf_field }}
+    {% with f=edit.form, e=edit.errors, p="edit-", months=edit.months %}{% include "inventory/_round_fields.html" %}{% endwith %}
+    <div class="form-actions"><button type="submit" class="btn">บันทึกข้อมูลรอบ</button></div>
+  </form>
+</details>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}ไม่มีสิทธิ์แก้ไข{% endblock %}
+{% block content %}
+<div class="narrow">
+  <h1>ไม่มีสิทธิ์แก้ไข</h1>
+  <p>บัญชี <strong>{{ user.display_name or user.username }}</strong> ดูข้อมูลได้อย่างเดียว
+     ถ้าต้องแก้ไขข้อมูล ให้ผู้ดูแลระบบเปลี่ยนสิทธิ์เป็น editor</p>
+  <p><a href="/assets">กลับไปหน้าทะเบียนครุภัณฑ์</a></p>
+</div>
+{% endblock %}

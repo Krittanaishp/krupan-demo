@@ -1,0 +1,50 @@
+/* ฟอนต์ของรายงานที่พิมพ์ออก (หน้าเว็บปกติยังใช้ Sarabun ใน app.css)
+   1. TH SarabunIT๙  ฟอนต์ที่ไฟล์ Excel เดิมใช้ (วาดเลขอารบิกเป็นรูปเลขไทย)
+      ไม่ได้เก็บไฟล์ฟอนต์ไว้ในระบบ: เป็นฉบับดัดแปลงของ TH SarabunPSK ที่ไม่ระบุผู้ดัดแปลง สิทธิ์แจกจ่ายต่อจึงไม่ชัดเจน
+      ใช้ฟอนต์ที่ติดตั้งในเครื่องที่เปิดเบราว์เซอร์ (local) ถ้าไม่มี หน้ารายงานจะขึ้นคำเตือนสีส้ม (font-check.js)
+   2. TH SarabunPSK  ถ้าติดตั้งในเครื่อง
+   3. TH Sarabun New ที่ติดตั้งในเครื่อง หรือไฟล์ในระบบ (static/fonts สัญญา GPL + font exception แจกจ่ายได้) */
+@font-face {
+  font-family: "TH SarabunIT๙";
+  font-weight: 400;
+  src: local("TH SarabunIT๙"), local("THSarabunIT๙");
+}
+@font-face {
+  font-family: "TH SarabunIT๙";
+  font-weight: 700;
+  src: local("TH SarabunIT๙ Bold"), local("THSarabunIT๙-Bold");
+}
+@font-face {
+  font-family: "TH SarabunPSK";
+  font-weight: 400;
+  src: local("TH SarabunPSK"), local("THSarabunPSK");
+}
+@font-face {
+  font-family: "TH SarabunPSK";
+  font-weight: 700;
+  src: local("TH SarabunPSK Bold"), local("THSarabunPSK-Bold");
+}
+@font-face {
+  font-family: "TH Sarabun New";
+  font-weight: 400;
+  src: local("TH Sarabun New"), local("THSarabunNew"), url(../fonts/THSarabunNew.ttf) format("truetype");
+}
+@font-face {
+  font-family: "TH Sarabun New";
+  font-weight: 700;
+  src: local("TH Sarabun New Bold"), local("THSarabunNew-Bold"), url(../fonts/THSarabunNew-Bold.ttf) format("truetype");
+}
+
+:root { --report-font: "TH SarabunIT๙", "TH SarabunPSK", "TH Sarabun New", sans-serif; }
+
+/* คำเตือนเมื่อเบราว์เซอร์ไม่ได้ใช้ TH SarabunIT๙ (ไม่พิมพ์ออก) */
+.font-warn {
+  border: 1px solid #c2410c; background: #fff7ed; color: #9a3412; border-radius: 6px;
+  padding: 8px 12px; margin: 0; font: 15px/1.5 "Sarabun", sans-serif; flex-basis: 100%;
+}
+.font-warn[hidden] { display: none; }
+
+@media print {
+  .font-warn { display: none !important; }
+  .report-print, .report-print * { font-family: var(--report-font) !important; }
+}

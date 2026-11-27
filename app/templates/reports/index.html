@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}รายงาน{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>รายงาน</h1>
+  <p class="muted">รายงานสำหรับพิมพ์เปิดในแท็บใหม่ (กระดาษ A4 ฟอนต์ TH SarabunIT๙ 16 แบบไฟล์ Excel เดิม) · ดาวน์โหลดเป็น Excel ได้ทุกรายงานทะเบียน</p>
+</div>
+
+{% macro register_options(prefix) %}
+<div class="opts">
+  <div class="field"><label for="{{ prefix }}-fy">ปีงบประมาณ</label>
+    <input id="{{ prefix }}-fy" name="fy" value="{{ fy }}" inputmode="numeric" maxlength="4" size="5"></div>
+  <div class="field"><label for="{{ prefix }}-group">รวมรายการเลขทะเบียนต่อเนื่อง</label>
+    <select id="{{ prefix }}-group" name="group"><option value="1" selected>รวม (แบบไฟล์เดิม)</option><option value="0">แยกทีละชิ้น</option></select></div>
+  <div class="field"><label for="{{ prefix }}-digits">ตัวเลข</label>
+    <select id="{{ prefix }}-digits" name="digits"><option value="thai" selected>เลขไทย</option><option value="arabic">เลขอารบิก</option></select></div>
+  <div class="field"><label for="{{ prefix }}-disposed">รายการที่จำหน่ายแล้ว</label>
+    <select id="{{ prefix }}-disposed" name="disposed"><option value="0" selected>ไม่รวม</option><option value="1">รวม ({{ n_disposed }} ชิ้น)</option></select></div>
+  <div class="field"><label for="{{ prefix }}-margin">ระยะขอบ</label>
+    <select id="{{ prefix }}-margin" name="margin"><option value="original" selected>ตรงต้นฉบับ</option>
+      <option value="safe">ปลอดภัยสำหรับเครื่องพิมพ์ (ขอบ 5 มม.)</option></select></div>
+</div>
+<fieldset class="cat-picks">
+  <legend class="label-like">หมวด (ไม่ติ๊กเลย = ทุกหมวด)</legend>
+  {% for c in categories %}<label><input type="checkbox" name="cat" value="{{ c.code }}"> {{ c.name }} <span class="muted">({{ c.n }})</span></label>{% endfor %}
+</fieldset>
+{% endmacro %}
+
+<div class="report-grid">
+  <form class="card report-card" method="get" action="/reports/register" target="_blank">
+    <h2>รายละเอียดทรัพย์สิน ประจำปีงบประมาณ</h2>
+    <p class="muted">แบบเดียวกับชีตหมวดในไฟล์ Excel เดิม แยกหน้าตามหมวด รวมทุกชิ้นที่ได้มาไม่เกินสิ้นปีงบประมาณที่เลือก</p>
+    {{ register_options("reg") }}
+    <div class="form-actions">
+      <button type="submit" class="btn">พิมพ์ (A4)</button>
+      <button type="submit" class="btn btn-secondary" formaction="/reports/register.xlsx" formtarget="_self">Excel (ชีตละหมวด)</button>
+    </div>
+  </form>
+
+  <form class="card report-card" method="get" action="/reports/acquired" target="_blank">
+    <h2>รายการครุภัณฑ์ได้มาในปีงบประมาณ</h2>
+    <p class="muted">แทนชีต “เพิ่ม xx” เดิม: เฉพาะชิ้นที่ปีงบประมาณที่ได้มาตรงกับปีที่เลือก</p>
+    {{ register_options("acq") }}
+    <div class="form-actions">
+      <button type="submit" class="btn">พิมพ์ (A4)</button>
+      <button type="submit" class="btn btn-secondary" formaction="/reports/acquired.xlsx" formtarget="_self">Excel</button>
+    </div>
+  </form>
+
+  <form class="card report-card" method="get" action="/reports/disposals" target="_blank">
+    <h2>ครุภัณฑ์ที่จำหน่ายในปีงบประมาณ</h2>
+    <p class="muted">ตามวันที่จำหน่าย (1 ต.ค. – 30 ก.ย.) ไม่รวมรายการที่ยกเลิกการจำหน่ายแล้ว</p>
+    <div class="opts">
+      <div class="field"><label for="dis-fy">ปีงบประมาณ</label><input id="dis-fy" name="fy" value="{{ fy }}" inputmode="numeric" maxlength="4" size="5"></div>
+      <div class="field"><label for="dis-digits">ตัวเลข</label>
+        <select id="dis-digits" name="digits"><option value="thai" selected>เลขไทย</option><option value="arabic">เลขอารบิก</option></select></div>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn">พิมพ์ (A4)</button>
+      <button type="submit" class="btn btn-secondary" formaction="/reports/disposals.xlsx" formtarget="_self">Excel</button>
+    </div>
+  </form>
+
+  <div class="card report-card">
+    <h2>สรุปครุภัณฑ์</h2>
+    <p class="muted">จำนวนและมูลค่าแยกตามหมวด ห้อง และสถานะ (ราคาที่ไม่ทราบนับแยกเป็น “ไม่ทราบมูลค่า”)</p>
+    <div class="form-actions">
+      <a class="btn" href="/reports/summary">ดูสรุป</a>
+      <a class="btn btn-secondary" href="/reports/summary?disposed=1">รวมที่จำหน่ายแล้ว</a>
+    </div>
+  </div>
+
+  <div class="card report-card">
+    <h2>Export ทั้งหมด (Excel)</h2>
+    <p class="muted">ทุกช่องของทุกชิ้น 1 แถวต่อ 1 ชิ้น พร้อมชื่อห้องและผู้รับผิดชอบ และชีตประวัติการย้าย ประวัติซ่อม การจำหน่าย
+      ใช้เป็นทางสำรอง ถ้าระบบมีปัญหายังกลับไปทำงานด้วย Excel ได้</p>
+    <div class="form-actions"><a class="btn" href="/reports/export.xlsx">ดาวน์โหลด</a></div>
+  </div>
+
+  <form class="card report-card" hx-post="/reports/signers" hx-trigger="change" hx-target="#signers-saved" hx-swap="innerHTML">
+    <h2>ช่องลงชื่อท้ายรายงาน</h2>
+    <p class="muted">ใช้กับทุกรายงานด้านบน ระบบจำค่าล่าสุดไว้ (บันทึกเองเมื่อแก้ช่อง)</p>
+    <div class="signers-grid">
+      {% for s in signers %}
+      <div class="field"><label for="sign-role-{{ loop.index0 }}">ตำแหน่งช่องที่ {{ loop.index }}</label>
+        <input id="sign-role-{{ loop.index0 }}" name="sign_role_{{ loop.index0 }}" value="{{ s.role }}" maxlength="120" {% if not user.can_edit %}disabled{% endif %}>
+        <label for="sign-name-{{ loop.index0 }}">ชื่อ</label>
+        <input id="sign-name-{{ loop.index0 }}" name="sign_name_{{ loop.index0 }}" value="{{ s.name }}" maxlength="120" placeholder="(เว้นว่าง = จุดไข่ปลา)" {% if not user.can_edit %}disabled{% endif %}></div>
+      {% endfor %}
+    </div>
+    <p id="signers-saved" class="saved-note muted" role="status">{% if not user.can_edit %}แก้ได้เฉพาะ editor ขึ้นไป{% endif %}</p>
+  </form>
+</div>
+{% endblock %}

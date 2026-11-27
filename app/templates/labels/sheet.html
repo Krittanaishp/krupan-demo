@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <title>{% if test %}ทดสอบเส้นขอบ{% else %}สติกเกอร์ QR {{ n }} ดวง{% endif %} · {{ preset.name }}</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="{{ static_url('css/app.css') }}">
+  {% set L = layout %}
+  <style nonce="{{ csp_nonce(request) }}">
+    /* ทุกขนาดเป็น มม. และกระดาษ A4 ไม่มีขอบ: ตำแหน่งดวงคิดจากมุมซ้ายบนของกระดาษตรง ๆ */
+    @page { size: A4 portrait; margin: 0; }
+    html, body { margin: 0; padding: 0; }
+    body.sheet-body { background: #e5e7eb; font-family: "Sarabun", "Leelawadee UI", "Tahoma", sans-serif; color: #000; }
+    .sheet {
+      position: relative; width: 210mm; height: 297mm; overflow: hidden; background: #fff;
+      break-after: page; page-break-after: always;
+    }
+    .sheet:last-of-type { break-after: auto; page-break-after: auto; }
+    .label {
+      position: absolute; box-sizing: border-box; overflow: hidden;
+      width: {{ '%g' % L.label_w }}mm; height: {{ '%g' % L.label_h }}mm; padding: {{ d.pad }}mm;
+      display: flex; gap: {{ d.pad }}mm;
+      {% if d.horizontal %}flex-direction: row; align-items: center;{% else %}flex-direction: column; align-items: center;{% endif %}
+    }
+    .label .qr { width: {{ d.qr }}mm; height: {{ d.qr }}mm; flex: 0 0 auto; display: block; }
+    .label .txt { min-width: 0; flex: 1 1 auto; width: {{ d.text_w }}mm; display: flex; flex-direction: column; gap: 0.6mm;
+                  {% if not d.horizontal %}text-align: center;{% endif %} }
+    .label .reg { font-weight: 600; line-height: 1.1; white-space: nowrap; letter-spacing: -0.01em; }
+    .label .reg span { display: block; }
+    .label .one { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.25; }
+    .label .name { font-size: {{ d.name_pt }}pt; }
+    .label .room { font-size: {{ d.room_pt }}pt; }
+    .label .office { font-size: {{ d.office_pt }}pt; color: #333; }
+    .border-test .label { border: 0.2mm solid #000; }
+    .border-test .label span { margin: auto; font-size: 8pt; color: #555; }
+
+    .toolbar { max-width: 210mm; margin: 0 auto; padding: 12px 0; font-size: 16px; }
+    .toolbar .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .toolbar ol { margin: 8px 0 0; padding-left: 20px; color: #374151; }
+    @media screen {
+      .sheet { margin: 0 auto 10mm; box-shadow: 0 1px 4px rgb(0 0 0 / 0.25); }
+      /* เส้นประบอกตำแหน่งดวงบนจอเท่านั้น ไม่ออกตอนพิมพ์ */
+      .sheet:not(.border-test) .label { outline: 0.2mm dashed #c7cdd6; outline-offset: -0.1mm; }
+    }
+    @media print {
+      body.sheet-body { background: #fff; }
+      .toolbar { display: none; }
+    }
+    {% for page in pages %}{% set p = loop.index %}{% for left, top, item in page %}
+    #lb-{{ p }}-{{ loop.index }} { left: {{ '%g' % left }}mm; top: {{ '%g' % top }}mm; }{% if not test %} #lb-{{ p }}-{{ loop.index }} .reg { font-size: {{ item.reg_pt }}pt; }{% endif %}
+    {% endfor %}{% endfor %}
+  </style>
+  <script src="{{ static_url('js/doc.js') }}" defer></script>
+</head>
+<body class="sheet-body">
+  <div class="toolbar">
+    <div class="row">
+      <a href="{{ back }}">‹ กลับไปตั้งค่า</a>
+      <button type="button" class="btn" data-print>พิมพ์</button>
+      {% if not test %}
+      <form method="post" action="/labels/mark" class="inline">
+        {{ csrf_field }}
+        <input type="hidden" name="back" value="{{ back }}">
+        {% for i in ids %}<input type="hidden" name="ids" value="{{ i }}">{% endfor %}
+        <button type="submit" class="btn btn-secondary">พิมพ์เรียบร้อยแล้ว บันทึกว่าพิมพ์ {{ ids | length }} ชิ้น</button>
+      </form>
+      {% endif %}
+    </div>
+    <p>{% if test %}แผ่นทดสอบเส้นขอบ {{ L.per_page }} ดวง{% else %}{{ n }} ดวง {{ pages | length }} แผ่น{% endif %}
+      · {{ preset.name }} ({{ L.n_cols }}×{{ L.n_rows }} ดวงละ {{ '%g' % L.label_w }}×{{ '%g' % L.label_h }} มม.)</p>
+    <ol>
+      <li>ตั้งค่าการพิมพ์: กระดาษ A4, ขอบกระดาษ “ไม่มี” (None), สเกล 100% (ไม่เลือก “พอดีกับหน้า”), ปิดหัวกระดาษและท้ายกระดาษ</li>
+      <li>ครั้งแรกให้กด “พิมพ์ทดสอบเส้นขอบ” บนกระดาษธรรมดาแล้วทาบกับแผ่นสติกเกอร์ก่อน</li>
+      {% if not test %}<li>พิมพ์เสร็จแล้วกด “พิมพ์เรียบร้อยแล้ว” เพื่อบันทึกว่าชิ้นเหล่านี้มีสติกเกอร์แล้ว</li>{% endif %}
+    </ol>
+  </div>
+
+  {% for page in pages %}
+  <section class="sheet{% if test %} border-test{% endif %}" aria-label="แผ่นที่ {{ loop.index }}">
+    {% set p = loop.index %}{% for left, top, item in page %}
+    <div class="label" id="lb-{{ p }}-{{ loop.index }}">
+      {% if test %}
+        <span>{{ loop.index }}</span>
+      {% else %}
+        {{ item.svg | safe }}
+        <div class="txt">
+          <div class="reg" aria-label="{{ item.text }}">{% for line in item.lines %}<span>{{ line }}</span>{% endfor %}</div>
+          <div class="one name">{{ item.name }}</div>
+          <div class="one room">{{ item.room or "—" }}</div>
+          <div class="one office">{{ office }}</div>
+        </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </section>
+  {% endfor %}
+</body>
+</html>

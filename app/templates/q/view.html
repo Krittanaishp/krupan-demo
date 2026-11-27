@@ -1,0 +1,85 @@
+{% extends "q/base.html" %}
+{% block title %}{{ a.reg_no or a.temp_code }}{% endblock %}
+{% block content %}
+{% if inv %}{% include "q/_inventory.html" %}{% endif %}
+<article class="q-card">
+  <p class="q-reg">{{ a.reg_no or a.temp_code }}</p>
+  {% if a.reg_no and a.temp_code %}<p class="q-sub">รหัสชั่วคราวเดิม {{ a.temp_code }}</p>{% endif %}
+  {% if not a.reg_no %}<p class="q-sub">ยังไม่มีเลขทะเบียน (รหัสชั่วคราว)</p>{% endif %}
+  <h1 class="q-name">{{ a.name }}</h1>
+  {% if a.details %}<p class="q-details">{{ a.details }}</p>{% endif %}
+
+  <dl class="q-facts">
+    <div>
+      <dt>สถานะ</dt>
+      <dd><span class="badge badge-lg badge-{{ STATUS_CLASS.get(a.status, 'muted') }}">{{ a.status }}</span></dd>
+    </div>
+    <div>
+      <dt>ห้อง</dt>
+      <dd>{% if a.location_name %}{{ a.location_name }}{% elif a.location_text %}<span class="loc-raw">{{ a.location_text }}</span> <span class="q-note">(ยังไม่จัดเข้าห้อง)</span>{% else %}ยังไม่จัดเข้าห้อง{% endif %}</dd>
+    </div>
+    <div>
+      <dt>ผู้รับผิดชอบ</dt>
+      <dd>{{ {"nickname": a.holder_nickname, "full_name": a.holder_full_name} | staff_label or "—" }}</dd>
+    </div>
+  </dl>
+</article>
+
+{% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
+
+{% if can_edit %}
+<div class="q-actions">
+  {% if a.status == "จำหน่ายแล้ว" %}
+  <p class="muted">ชิ้นนี้จำหน่ายแล้ว เปลี่ยนสถานะไม่ได้ · <a href="/assets/{{ a.id }}#disposal">ดูบันทึกการจำหน่าย</a></p>
+  {% else %}
+  <details class="q-action" {% if error %}open{% endif %}>
+    <summary class="btn q-btn">เปลี่ยนสถานะ</summary>
+    <form method="post" action="/q/{{ canonical }}/status" class="q-form">
+      {{ csrf_field }}
+      <fieldset>
+        <legend class="sr-only">สถานะใหม่</legend>
+        {% for s in statuses %}
+        <label class="q-choice"><input type="radio" name="status" value="{{ s }}" {% if s == a.status %}checked{% endif %}>
+          <span class="badge badge-{{ STATUS_CLASS.get(s, 'muted') }}">{{ s }}</span></label>
+        {% endfor %}
+      </fieldset>
+      <button type="submit" class="btn q-btn">บันทึกสถานะ</button>
+    </form>
+  </details>
+  {% endif %}
+
+  <details class="q-action">
+    <summary class="btn q-btn btn-secondary">ย้ายห้อง</summary>
+    <form method="post" action="/q/{{ canonical }}/move" class="q-form">
+      {{ csrf_field }}
+      <label for="q-loc">ห้องใหม่</label>
+      <select id="q-loc" name="location_id">
+        <option value="">— ยังไม่จัดเข้าห้อง —</option>
+        {% for l in locations %}<option value="{{ l.id }}" {% if l.id == a.location_id %}selected{% endif %}>{{ l.name }}{% if not l.active %} (ปิดใช้งาน){% endif %}</option>{% endfor %}
+      </select>
+      <label for="q-holder">ผู้รับผิดชอบ</label>
+      <select id="q-holder" name="holder_id">
+        <option value="">— ไม่ระบุ —</option>
+        {% for s in staff %}<option value="{{ s.id }}" {% if s.id == a.holder_id %}selected{% endif %}>{{ s | staff_label }}{% if not s.active %} (ปิดใช้งาน){% endif %}</option>{% endfor %}
+      </select>
+      <button type="submit" class="btn q-btn">บันทึกการย้าย</button>
+    </form>
+  </details>
+</div>
+{% elif user %}
+<p class="hint q-hint">บัญชีของคุณดูได้อย่างเดียว แก้ข้อมูลไม่ได้</p>
+{% else %}
+<a class="btn btn-secondary q-btn q-login" href="/login?next=/q/{{ canonical }}">เข้าสู่ระบบเพื่อเปลี่ยนสถานะหรือย้ายห้อง</a>
+{% endif %}
+
+{% if moves %}
+<section class="q-moves">
+  <h2>การย้ายล่าสุด</h2>
+  <ul>{% for m in moves %}<li>{{ m.moved_at | thai_date }} · {{ m.to_location or "ไม่ระบุห้อง" }} <span class="q-note">({{ m.reason or "ย้าย" }})</span></li>{% endfor %}</ul>
+</section>
+{% endif %}
+
+{% include "assets/_repairs.html" %}
+
+<p class="q-more"><a href="/assets/{{ a.id }}">ดูข้อมูลทั้งหมดและประวัติ ›</a></p>
+{% endblock %}

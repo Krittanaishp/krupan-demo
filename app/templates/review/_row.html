@@ -1,0 +1,51 @@
+{# จอกว้าง: แถวตาราง (ความกว้างคอลัมน์คงที่ ไม่เลื่อนแนวนอน ปุ่มเห็นครบ) · จอแคบกว่า 1024px: การ์ด ดู .review-table ใน app.css #}
+<tr>
+  <td class="reg">
+    {# เลขทะเบียนตัดบรรทัดได้เฉพาะหลังขีด (คอลัมน์แคบที่จอ 1280px) #}
+    {% if r.reg_no %}{% for part in r.reg_no.split("-") %}{{ part }}{% if not loop.last %}-<wbr>{% endif %}{% endfor %}
+    {% else %}{{ r.temp_code }} <span class="tag">ชั่วคราว</span>{% endif %}
+  </td>
+  <td class="name">
+    <a href="/assets/{{ r.id }}">{{ r.name }}</a>
+    {% if r.details %}
+      {# รายละเอียดแสดงไม่เกิน 2 บรรทัด ชี้เมาส์ดูข้อความเต็ม (title) หรือกด “ดูเพิ่ม” #}
+      {% if r.details | length > 90 %}
+      <details class="more-details">
+        <summary><span class="clamp-2 muted small" title="{{ r.details }}">{{ r.details }}</span><span class="more-link">ดูเพิ่ม</span></summary>
+        <div class="muted small full-details">{{ r.details }}</div>
+      </details>
+      {% else %}
+      <div class="clamp-2 muted small" title="{{ r.details }}">{{ r.details }}</div>
+      {% endif %}
+    {% endif %}
+  </td>
+  <td class="flags">
+    {# ป้ายสั้นเป็นเม็ดไม่ตกบรรทัด · ข้อความยาวทั้งประโยค (เช่น “Excel อ่านเป็น … แก้เป็นปี พ.ศ. …”) เป็นกล่องตัดบรรทัดได้ระหว่างคำ ไม่ตัดด้วย … #}
+    <span class="flag flag-main{% if r.flag | length > 24 %} flag-long{% endif %}" title="{{ r.flag }}">{{ r.flag }}</span>
+    {% for f in r.other_flags %}<span class="tag{% if f | length > 24 %} flag-long{% endif %}" title="ปัญหาอื่นของรายการนี้: {{ f }}">{{ f }}</span>{% endfor %}
+  </td>
+  <td class="small facts">
+    {# ป้ายกับค่าอยู่บรรทัดเดียวกันเสมอ (.fact) #}
+    <div class="fact"><span class="k">วันที่:</span> <span class="v">{{ r.acquired_date | thai_date(r.acquired_date_precision) or "ไม่ทราบ" }}</span></div>
+    <div class="fact"><span class="k">ราคา:</span> <span class="v">{% if r.unit_price is none %}ไม่ทราบ{% else %}{{ r.unit_price | money }}{% endif %}</span></div>
+    {% if r.location_text %}<div class="fact fact-long"><span class="k">ที่ตั้ง:</span> {{ r.location_text }}</div>{% endif %}
+  </td>
+  <td class="small source">
+    <div class="fact"><span class="fact-label">ชีตต้นทาง: </span><code>{{ r.source_sheet }}</code> <span class="v">แถว {{ r.source_row }}</span></div>
+    {% if r.acquired_date_raw %}<div class="muted">วันที่เดิม: <span class="v">{{ r.acquired_date_raw }}</span></div>{% endif %}
+  </td>
+  {% if can_edit %}
+  <td class="actions">
+    <a class="btn btn-small btn-secondary" href="/assets/{{ r.id }}/edit?next={{ (page_url or '/review?group=' ~ group[0]) | urlencode }}">แก้ไข</a>
+    <form method="post" action="/review/resolve" class="inline"
+          hx-post="/review/resolve" hx-target="closest tr" hx-swap="outerHTML">
+      {{ csrf_field }}
+      <input type="hidden" name="asset_id" value="{{ r.id }}">
+      <input type="hidden" name="flag" value="{{ r.flag }}">
+      <input type="hidden" name="group" value="{{ group[0] }}">
+      {% if q %}<input type="hidden" name="q" value="{{ q }}">{% if all_mode %}<input type="hidden" name="all" value="1">{% endif %}{% endif %}
+      <button type="submit" class="btn btn-small">ตรวจแล้ว</button>
+    </form>
+  </td>
+  {% endif %}
+</tr>

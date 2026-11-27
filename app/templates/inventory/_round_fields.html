@@ -1,0 +1,33 @@
+{# ช่องข้อมูลรอบตรวจสอบพัสดุ ใช้ทั้งตอนเปิดรอบใหม่และแก้ไขรอบที่ยังเปิดอยู่ (ตัวแปร: f = ฟอร์ม, e = errors, p = prefix ของ id) #}
+<div class="form-grid inv-round-grid">
+  <div class="field">
+    <label for="{{ p }}fy">ปีงบประมาณ (พ.ศ.)</label>
+    <input id="{{ p }}fy" name="fiscal_year" value="{{ f.fiscal_year }}" inputmode="numeric" maxlength="4" required
+           {% if e.fiscal_year %}aria-invalid="true" aria-describedby="{{ p }}fy-err"{% endif %}>
+    {% if e.fiscal_year %}<p class="field-error" id="{{ p }}fy-err">{{ e.fiscal_year }}</p>{% endif %}
+  </div>
+  <fieldset class="field span-2">
+    <legend class="label-like">วันที่เริ่มตรวจ</legend>
+    <div class="date-parts">
+      <label class="sr-only" for="{{ p }}day">วัน</label>
+      <input id="{{ p }}day" name="day" value="{{ f.day }}" inputmode="numeric" maxlength="2" size="2" aria-label="วัน">
+      <label class="sr-only" for="{{ p }}month">เดือน</label>
+      <select id="{{ p }}month" name="month" aria-label="เดือน">
+        {% for m in months %}<option value="{{ loop.index }}" {% if f.month == loop.index | string %}selected{% endif %}>{{ m }}</option>{% endfor %}
+      </select>
+      <label class="sr-only" for="{{ p }}year">ปี พ.ศ.</label>
+      <input id="{{ p }}year" name="year_be" value="{{ f.year_be }}" inputmode="numeric" maxlength="4" size="4" aria-label="ปี พ.ศ.">
+    </div>
+    {% if e.started_at %}<p class="field-error">{{ e.started_at }}</p>{% endif %}
+  </fieldset>
+  <div class="field span-2">
+    <label for="{{ p }}chair">ประธานกรรมการ</label>
+    <input id="{{ p }}chair" name="chair" value="{{ f.chair }}" maxlength="120" placeholder="เช่น นายสมชาย ใจดี"
+           {% if e.committee %}aria-invalid="true"{% endif %}>
+  </div>
+  <div class="field span-2">
+    <label for="{{ p }}members">กรรมการ (บรรทัดละ 1 คน)</label>
+    <textarea id="{{ p }}members" name="members" rows="3" {% if e.committee %}aria-invalid="true"{% endif %}>{{ f.members }}</textarea>
+  </div>
+  {% if e.committee %}<p class="field-error span-2">{{ e.committee }}</p>{% endif %}
+</div>

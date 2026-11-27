@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}สำรองข้อมูล{% endblock %}
+{% macro size(n) %}{% if n >= 1048576 %}{{ "{:,.1f}".format(n / 1048576) }} MB{% else %}{{ "{:,.0f}".format(n / 1024) }} KB{% endif %}{% endmacro %}
+{% block content %}
+{% include "settings/_tabs.html" %}
+<div class="page-head page-head-row">
+  <div>
+    <h1>สำรองข้อมูล</h1>
+    <p class="muted">ระบบสำรองเองทุกวันเวลา 12:00, 16:00 และตอนเปิดเครื่อง ไม่ต้องมีใครทำอะไร · เก็บรายวัน 30 วัน และรายเดือน 12 เดือน</p>
+  </div>
+  <div class="head-actions">
+    <form method="post" action="/settings/backup/run" class="inline">
+      {{ csrf_field }}
+      <button type="submit" class="btn">สำรองตอนนี้</button>
+    </form>
+    {% if files.daily %}<a class="btn btn-secondary" href="/settings/backup/latest">ดาวน์โหลดไฟล์สำรองล่าสุด</a>{% endif %}
+  </div>
+</div>
+
+{% if same_disk %}
+<div class="alert-warn" role="note"><p class="review-title">{{ same_disk }}</p>
+  <p>ดูคู่มือติดตั้ง หัวข้อ “เลือกวิธีสำรองนอกเครื่อง”</p></div>
+{% endif %}
+
+<section class="card">
+  <h2>1. สำรองในเครื่อง</h2>
+  <dl class="backup-status">
+    <dt>สำรองสำเร็จล่าสุด</dt>
+    <dd>{% if last_success %}{{ fmt(last_success) }} · <code>{{ status.last_file }}</code>
+      <span class="muted">({{ status.last_check }})</span>{% else %}<span class="badge badge-danger">ยังไม่เคยสำรองสำเร็จ</span>{% endif %}</dd>
+    {% if last_failure and (not last_success or last_failure > last_success) %}
+    <dt>ล้มเหลวล่าสุด</dt>
+    <dd><span class="badge badge-danger">{{ fmt(last_failure) }}</span> {{ status.last_error }}</dd>
+    {% endif %}
+    <dt>โฟลเดอร์หลัก</dt><dd><code>{{ backup_dir }}</code></dd>
+    <dt>สำเนาบนไดรฟ์ที่สอง</dt>
+    <dd>
+      {% if copy_dir %}<code>{{ copy_dir }}</code>
+        · คัดลอกสำเร็จล่าสุด {{ fmt(last_copy) if last_copy else "ยังไม่เคย" }}
+        {% if status.last_copy_error and (not last_copy or (last_copy_error_at and last_copy_error_at > last_copy)) %}
+        <br><span class="badge badge-warn">คัดลอกไม่ได้ {{ fmt(last_copy_error_at) }}</span> {{ status.last_copy_error }}{% endif %}
+      {% else %}ไม่ได้ตั้ง (BACKUP_COPY_DIR ในไฟล์ .env){% endif %}
+    </dd>
+  </dl>
+  {% if not warnings_enabled %}<p class="muted">ปิดแถบเตือนไว้ (BACKUP_WARNING=off ในไฟล์ .env)</p>{% endif %}
+</section>
+
+<section class="card">
+  <h2>2. สำเนานอกเครื่อง <span class="muted small">เลือกได้ ไม่บังคับ · ถ้าไม่มีเลยเกิน {{ offsite_days }} วัน จะมีแถบเตือนสีส้ม</span></h2>
+  <dl class="backup-status">
+    <dt>Google Drive</dt>
+    <dd>
+      <form method="post" action="/settings/backup/gdrive" class="inline gdrive-form">
+        {{ csrf_field }}
+        <label class="check"><input type="checkbox" name="confirmed" value="1" {% if gdrive_at %}checked{% endif %} data-autosubmit><span>ใช้ Google Drive สำรองโฟลเดอร์{% if copy_dir %} <code>{{ copy_dir }}</code>{% endif %} แล้ว</span></label>
+        <noscript><button type="submit" class="btn btn-small btn-secondary">บันทึก</button></noscript>
+      </form>
+      {% if gdrive_at %}<span class="muted">ติ๊กไว้เมื่อ {{ fmt(gdrive_at) }} โดย {{ status.gdrive_confirmed_by }} · ระบบตรวจเองไม่ได้ว่า Google Drive ยังทำงานอยู่ ให้เปิดดูใน drive.google.com เป็นระยะ</span>
+      {% else %}<span class="muted">วิธีตั้งดูคู่มือติดตั้ง หัวข้อ “สำรองขึ้น Google Drive”</span>{% endif %}
+    </dd>
+    <dt>แฟลชไดรฟ์</dt>
+    <dd>
+      ชื่อไดรฟ์ที่ใช้: <code>{{ usb_label }}</code> ·
+      {% if status.usb_present %}<span class="badge badge-ok">เสียบอยู่ที่ {{ status.usb_drive }}</span>{% else %}ไม่ได้เสียบอยู่{% endif %}
+      <br>คัดลอกล่าสุด {{ fmt(usb_last) if usb_last else "ยังไม่เคย" }}{% if status.usb_last_file %} · <code>{{ status.usb_last_file }}</code>{% endif %}
+      {% if status.usb_last_error %}<br><span class="badge badge-warn">คัดลอกไม่ได้ {{ fmt(usb_error_at) }}</span> {{ status.usb_last_error }}{% endif %}
+      <br><span class="muted">เสียบแฟลชไดรฟ์ที่ตั้งชื่อด้วย “เตรียมแฟลชไดรฟ์.bat” ระบบคัดลอกไฟล์ล่าสุดให้เองภายใน 1 นาที (วันละครั้ง) แล้วขึ้นข้อความว่าถอดออกได้</span>
+    </dd>
+  </dl>
+  <p class="muted">กู้คืนข้อมูลจากไฟล์สำรอง: ใช้ <code>scripts\restore.ps1</code> ตามคู่มือผู้ดูแลระบบ</p>
+</section>
+
+{% for title, key, note in [("รายวัน", "daily", "วันนี้เก็บทุกไฟล์ วันก่อนหน้าเก็บไฟล์สุดท้ายของวัน 30 วัน"),
+                           ("รายเดือน", "monthly", "ไฟล์แรกของแต่ละเดือน 12 เดือน"),
+                           ("ก่อนเปลี่ยนแปลงสำคัญ", "other", "ก่อน migration ปิดรอบตรวจสอบพัสดุ อัปเดต หรือกู้คืน (ไม่ลบอัตโนมัติ)")] %}
+<section class="card">
+  <h2>{{ title }} <span class="muted small">{{ files[key] | length }} ไฟล์ · {{ note }}</span></h2>
+  {% if files[key] %}
+  <div class="table-wrap">
+    <table class="assets backup-files">
+      <thead><tr><th scope="col">ไฟล์</th><th scope="col">เวลา</th><th scope="col" class="num">ขนาด</th></tr></thead>
+      <tbody>
+        {% for f in files[key][:40] %}
+        <tr><td><code>{{ f.name }}</code></td><td>{{ fmt(f.mtime) }}</td><td class="num">{{ size(f.size) }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if files[key] | length > 40 %}<p class="muted">แสดง 40 ไฟล์ล่าสุด</p>{% endif %}
+  {% else %}<p class="muted">ยังไม่มีไฟล์</p>{% endif %}
+</section>
+{% endfor %}
+{% endblock %}

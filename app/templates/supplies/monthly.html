@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}สรุปวัสดุรายเดือน{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>วัสดุสิ้นเปลือง</h1>
+  <p class="muted">สรุปการเบิกแยกตามฝ่าย และรับ–จ่าย–คงเหลือของทุกรายการ ประจำเดือน (ไม่นับเอกสารที่ยกเลิก) · ตัวเลขในไฟล์ Excel ตรงกับตารางนี้</p>
+</div>
+{% include "supplies/_tabs.html" %}
+
+{# ตัวกรองอัตโนมัติ (static/js/autofilter.js): เปลี่ยนเดือนแล้วแทนที่เฉพาะ #monthly-results · ไม่เลือกเดือน = เดือนนี้ #}
+<form id="monthly-filters" class="filters" method="get" action="/supplies/monthly" role="search" data-autofilter
+      hx-get="/supplies/monthly" hx-trigger="krupan:filter" hx-target="#monthly-results" hx-select="#monthly-results"
+      hx-swap="outerHTML" hx-indicator="#monthly-results" hx-sync="this:replace">
+  <div class="field"><label for="month">เดือน</label>
+    <input id="month" type="month" name="month" value="{{ month }}" data-empty-label="เดือนนี้"></div>
+  <noscript><button type="submit" class="btn btn-secondary">แสดง</button></noscript>
+</form>
+
+<div id="monthly-results" class="results">
+<section class="monthly-section" aria-labelledby="matrix-title">
+  <div class="results-meta">
+    <h2 id="matrix-title">สรุปการเบิกรายเดือน <span class="muted">({{ matrix.start | thai_date }} – {{ matrix.end | thai_date }})</span></h2>
+    <span class="results-links">{% set xlsx_url = "/supplies/monthly/issues.xlsx" %}{% include "supplies/_xlsx_link.html" with context %}</span>
+  </div>
+  {% if matrix.rows %}
+  {# ตารางวัสดุ × ฝ่าย · จอแคบกว่า 1024px เป็นการ์ดทีละรายการ (แสดงเฉพาะฝ่ายที่เบิก) แบบตารางอื่นในระบบ #}
+  <div class="table-wrap">
+    <table class="assets supply-table stack-table matrix-table">
+      <thead>
+        <tr>
+          <th scope="col">รายการ</th><th scope="col">หน่วย</th>
+          {% for d in matrix.departments %}<th scope="col" class="num">{{ d.name }}</th>{% endfor %}
+          <th scope="col" class="num">รวมทุกฝ่าย</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in matrix.rows %}
+        <tr>
+          <td class="stack-main name"><a href="/supplies/items/{{ r.id }}">{{ r.name }}</a><div class="muted small">{{ r.category }}</div></td>
+          <td class="stack-inline">{{ r.base_unit }}</td>
+          {% for q in r.qty %}<td class="num stack-inline{% if not q %} stack-hide{% endif %}" data-label="{{ matrix.departments[loop.index0].name }}">{{ "{:,}".format(q) if q else "" }}</td>{% endfor %}
+          <td class="num stack-inline qty-cell" data-label="รวมทุกฝ่าย"><strong>{{ "{:,}".format(r.total) }}</strong> {{ r.base_unit }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tbody class="matrix-foot">
+        {% for label, values, total in (("จำนวนใบเบิก (ใบ)", matrix.n_docs, matrix.n_docs_total), ("จำนวนรายการที่เบิก (รายการ)", matrix.n_items, matrix.n_items_total)) %}
+        <tr>
+          <td class="stack-main" colspan="2">{{ label }}</td>
+          {% for q in values %}<td class="num stack-inline" data-label="{{ matrix.departments[loop.index0].name }}">{{ "{:,}".format(q) }}</td>{% endfor %}
+          <td class="num stack-inline qty-cell" data-label="ทุกฝ่าย"><strong>{{ "{:,}".format(total) }}</strong></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="hint">จำนวนเป็นหน่วยหลักของแต่ละรายการ (ดูคอลัมน์หน่วย) · ไม่นับใบเบิกที่ยกเลิก</p>
+  {% else %}
+  <div class="empty"><p>ไม่มีการเบิกจ่ายในเดือนนี้</p></div>
+  {% endif %}
+</section>
+
+<section class="monthly-section" aria-labelledby="move-title">
+  <div class="results-meta">
+    <h2 id="move-title">สรุปรับ–จ่าย–คงเหลือ <span class="muted">({{ move.start | thai_date }} – {{ move.end | thai_date }})</span></h2>
+    <span class="results-links">{% set xlsx_url = "/supplies/monthly/movement.xlsx" %}{% include "supplies/_xlsx_link.html" with context %}</span>
+  </div>
+  {% if move.rows %}
+  <div class="table-wrap">
+    <table class="assets supply-table stack-table">
+      <thead>
+        <tr><th scope="col">รายการ</th><th scope="col">หน่วย</th><th scope="col" class="num">ยกมา</th><th scope="col" class="num">รับ</th>
+          <th scope="col" class="num">จ่าย</th><th scope="col" class="num">ปรับยอด</th><th scope="col" class="num">คงเหลือ</th><th scope="col">สถานะ</th></tr>
+      </thead>
+      <tbody>
+        {% for r in move.rows %}
+        <tr>
+          <td class="stack-main name"><a href="/supplies/items/{{ r.id }}">{{ r.name }}</a>{% if not r.active %} <span class="badge badge-muted">ปิดใช้งาน</span>{% endif %}<div class="muted small">{{ r.category }}</div></td>
+          <td class="stack-inline">{{ r.base_unit }}</td>
+          {% for key, label in (("opening", "ยกมา"), ("received", "รับ"), ("issued", "จ่าย"), ("adjusted", "ปรับยอด")) %}
+          <td class="num stack-inline" data-label="{{ label }}">{{ "{:,}".format(r[key]) }}</td>
+          {% endfor %}
+          <td class="num stack-inline qty-cell" data-label="คงเหลือ"><strong>{{ "{:,}".format(r.closing) }}</strong></td>
+          <td class="stack-inline{% if r.level == 'ok' %} stack-hide{% endif %}">{% if r.level == "out" %}<span class="badge badge-danger">หมดแล้ว</span>{% elif r.level == "low" %}<span class="badge badge-warn">ต่ำกว่าจุดสั่งซื้อ</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="hint">คงเหลือ = ยกมา + รับ − จ่าย ± ปรับยอด · ยกมารวมยอดยกมาที่นำเข้าระบบในเดือนนี้ · เอกสารที่ยกเลิกหักออกจากรับ/จ่ายแล้ว</p>
+  {% else %}
+  <div class="empty"><p>ยังไม่มีรายการวัสดุ</p></div>
+  {% endif %}
+</section>
+</div>
+{% endblock %}

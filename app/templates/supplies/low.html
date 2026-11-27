@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}วัสดุต่ำกว่าจุดสั่งซื้อ{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>วัสดุสิ้นเปลือง</h1>
+  <p class="muted">รายการที่หมดแล้ว หรือยอดคงเหลือต่ำกว่าจุดสั่งซื้อ (เท่ากับจุดสั่งซื้อพอดียังไม่เตือน) (รายการที่ไม่ได้ตั้งจุดสั่งซื้อจะขึ้นเมื่อหมดเท่านั้น)</p>
+</div>
+{% include "supplies/_tabs.html" %}
+
+<div class="results-meta">
+  <p class="count">หมดแล้ว {{ n_out }} รายการ · ต่ำกว่าจุดสั่งซื้อ {{ n_low }} รายการ</p>
+  <span class="results-links">{% set xlsx_url = "/supplies/low.xlsx" %}{% set query = "" %}{% include "supplies/_xlsx_link.html" with context %}</span>
+</div>
+{% if rows %}
+<div class="table-wrap">
+  <table class="assets supply-table stack-table">
+    <thead>
+      <tr>
+        <th scope="col">รายการ</th>
+        <th scope="col">หมวด</th>
+        <th scope="col" class="num">คงเหลือ</th>
+        <th scope="col">หน่วย</th>
+        <th scope="col" class="num">เตือนเมื่อเหลือต่ำกว่า</th>
+        <th scope="col">สถานะ</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td class="stack-main name"><a href="/supplies/items/{{ r.id }}">{{ r.name }}</a></td>
+        <td data-label="หมวด">{{ r.category }}</td>
+        <td class="num stack-inline" data-label="คงเหลือ"><strong>{{ "{:,}".format(r.balance) }}</strong></td>
+        <td class="stack-inline">{{ r.base_unit }}</td>
+        <td class="num stack-inline" data-label="เตือนเมื่อเหลือต่ำกว่า">{{ "{:,}".format(r.reorder_point) if r.reorder_point is not none else "—" }}</td>
+        <td class="stack-inline">{% if r.level == "out" %}<span class="badge badge-danger">หมดแล้ว</span>{% else %}<span class="badge badge-warn">ต่ำกว่าจุดสั่งซื้อ</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty"><p>ไม่มีรายการที่ต้องสั่งซื้อ</p></div>
+{% endif %}
+{% endblock %}

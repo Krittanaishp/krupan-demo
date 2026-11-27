@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}ตรวจสอบพัสดุประจำปี{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>ตรวจสอบพัสดุประจำปี</h1>
+  <p class="muted">เปิดได้ทีละ 1 รอบ · รอบที่ปิดแล้วแก้ไขไม่ได้ · ครุภัณฑ์ในรอบคือทุกชิ้นที่สถานะไม่ใช่ “จำหน่ายแล้ว” ณ ตอนเปิดรอบ</p>
+</div>
+
+{% if errors.open and open %}<p class="form-error" role="alert">{{ errors.open }}</p>{% endif %}
+{% if open %}
+<div class="card inv-open-card">
+  <p class="summary-big">รอบที่เปิดอยู่: ปีงบประมาณ {{ open.fiscal_year }}</p>
+  <p class="muted">เริ่มตรวจ {{ open.started_at | thai_date }} · ต้องปิดรอบนี้ก่อนจึงเปิดรอบใหม่ได้</p>
+  <a class="btn" href="/inventory/{{ open.id }}">ดูความคืบหน้า</a>
+</div>
+{% else %}
+<form method="post" action="/inventory" class="card form">
+  {{ csrf_field }}
+  <h2 class="card-title">เปิดรอบตรวจสอบพัสดุใหม่</h2>
+  {% if errors.open %}<p class="form-error" role="alert">{{ errors.open }}</p>{% endif %}
+  {% with f=form, e=errors, p="new-" %}{% include "inventory/_round_fields.html" %}{% endwith %}
+  <p class="hint">เมื่อเปิดรอบ ระบบจะเก็บรายการครุภัณฑ์ {{ "{:,}".format(n_assets) }} ชิ้น (ทุกชิ้นที่ยังไม่จำหน่าย) ไว้เป็นรายการของรอบนี้
+    ของที่เพิ่มเข้าทะเบียนหลังจากนี้จะไม่อยู่ในรอบ</p>
+  <div class="form-actions"><button type="submit" class="btn">เปิดรอบตรวจสอบพัสดุ</button></div>
+</form>
+{% endif %}
+
+<h2 class="section-title">รอบทั้งหมด</h2>
+{% if checks %}
+<div class="table-wrap">
+  <table class="assets manage-table stack-table">
+    <thead><tr>
+      <th scope="col">ปีงบประมาณ</th><th scope="col">เริ่มตรวจ</th><th scope="col">ปิดรอบ</th>
+      <th scope="col" class="num">ตรวจแล้ว / ทั้งหมด</th><th scope="col"><span class="sr-only">ดำเนินการ</span></th>
+    </tr></thead>
+    <tbody>
+      {% for c in checks %}
+      <tr>
+        <td class="stack-main"><a href="/inventory/{{ c.id }}">ปีงบประมาณ {{ c.fiscal_year }}</a></td>
+        <td class="stack-inline" data-label="เริ่มตรวจ">{{ c.started_at | thai_date }}</td>
+        <td class="stack-inline" data-label="ปิดรอบ">{% if c.closed_at %}{{ c.closed_at | thai_date }}{% else %}<span class="badge badge-ok">เปิดอยู่</span>{% endif %}</td>
+        <td class="num stack-inline" data-label="ตรวจแล้ว / ทั้งหมด">{{ "{:,}".format(c.n_checked) }} / {{ "{:,}".format(c.n_items) }}</td>
+        <td class="actions"><a href="/inventory/{{ c.id }}/report">รายงานผล</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty"><p>ยังไม่เคยเปิดรอบตรวจสอบพัสดุ</p></div>
+{% endif %}
+{% endblock %}

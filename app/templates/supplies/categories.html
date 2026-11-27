@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}หมวดวัสดุ{% endblock %}
+{% block content %}
+<a class="back" href="/supplies/items">← รายการวัสดุ</a>
+<div class="page-head">
+  <h1>หมวดวัสดุ</h1>
+  <p class="muted">เช่น เครื่องเขียน กระดาษ หมึกพิมพ์ · หมวดที่ยังมีรายการใช้งานอยู่ปิดใช้งานไม่ได้</p>
+</div>
+
+{% if user and user.can_edit %}
+<form method="post" action="/supplies/categories" class="card inline-add">
+  {{ csrf_field }}
+  <div class="field">
+    <label for="new-cat">ชื่อหมวดใหม่</label>
+    <input id="new-cat" name="name" maxlength="100" required>
+  </div>
+  <button type="submit" class="btn">เพิ่มหมวด</button>
+</form>
+{% endif %}
+
+{% if cats %}
+<div class="table-wrap">
+  <table class="assets manage-table stack-table">
+    <thead>
+      <tr><th scope="col">ชื่อหมวด</th><th scope="col" class="num">รายการ</th><th scope="col">สถานะ</th>
+        {% if user and user.can_edit %}<th scope="col"><span class="sr-only">ดำเนินการ</span></th>{% endif %}</tr>
+    </thead>
+    <tbody>
+      {% for c in cats %}
+      <tr {% if not c.active %}class="inactive"{% endif %}>
+        {% if user and user.can_edit %}
+        <td data-label="ชื่อหมวด"><label class="sr-only" for="cat-{{ c.id }}">ชื่อหมวด</label>
+          <input class="cell-input" id="cat-{{ c.id }}" name="name" value="{{ c.name }}" form="catf-{{ c.id }}" maxlength="100"></td>
+        {% else %}
+        <td class="stack-main">{{ c.name }}</td>
+        {% endif %}
+        <td class="num stack-inline" data-label="รายการ">{{ c.n_items }}</td>
+        <td class="stack-inline">{% if c.active %}<span class="badge badge-ok">ใช้งาน</span>{% else %}<span class="badge badge-muted">ปิดใช้งาน</span>{% endif %}</td>
+        {% if user and user.can_edit %}
+        <td class="actions">
+          <form method="post" action="/supplies/categories/{{ c.id }}" id="catf-{{ c.id }}" class="inline">
+            {{ csrf_field }}<button type="submit" class="btn btn-small btn-secondary">บันทึก</button>
+          </form>
+          <form method="post" action="/supplies/categories/{{ c.id }}/active" class="inline">
+            {{ csrf_field }}<input type="hidden" name="active" value="{{ 0 if c.active else 1 }}">
+            <button type="submit" class="btn btn-small btn-secondary">{{ "ปิดใช้งาน" if c.active else "เปิดใช้งาน" }}</button>
+          </form>
+          <a class="btn btn-small btn-secondary" href="/supplies/items/new?category={{ c.id }}">เพิ่มรายการในหมวดนี้</a>
+        </td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty"><p>ยังไม่มีหมวดวัสดุ</p></div>
+{% endif %}
+{% endblock %}

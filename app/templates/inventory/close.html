@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}ปิดรอบตรวจสอบพัสดุประจำปี {{ check.fiscal_year }}{% endblock %}
+{% block content %}
+<p class="back"><a href="/inventory/{{ check.id }}">‹ ตรวจสอบพัสดุประจำปี {{ check.fiscal_year }}</a></p>
+<div class="page-head">
+  <h1>ปิดรอบตรวจสอบพัสดุประจำปีงบประมาณ {{ check.fiscal_year }}</h1>
+  <p class="muted">ตรวจแล้ว {{ "{:,}".format(c.checked) }} / {{ "{:,}".format(c.total) }} ชิ้น · ปิดรอบแล้วจะแก้ผลการตรวจไม่ได้อีก</p>
+</div>
+
+{% if rows %}
+<div class="card alert-danger">
+  <p><strong>ยังมี {{ "{:,}".format(rows | length) }} ชิ้นที่ไม่ได้ตรวจ</strong> ถ้าปิดรอบตอนนี้ ชิ้นเหล่านี้จะถูกบันทึกเป็น “ไม่พบ”</p>
+</div>
+<div class="table-wrap">
+  <table class="assets stack-table">
+    <thead><tr><th scope="col" class="num">ลำดับ</th><th scope="col">เลขทะเบียน</th><th scope="col">รายการ</th><th scope="col">ห้องตามทะเบียน</th></tr></thead>
+    <tbody>
+      {% for r in rows %}<tr><td class="num stack-inline">{{ loop.index }}.</td><td class="nowrap stack-inline"><a href="/assets/{{ r.asset_id }}">{{ r.reg_no or r.temp_code }}</a></td>
+        <td>{{ r.name }}</td><td data-label="ห้องตามทะเบียน">{{ r.expected_location_name or r.location_text or "—" }}</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p class="ok-text">ตรวจครบทุกชิ้นแล้ว</p>
+{% endif %}
+
+<form method="post" action="/inventory/{{ check.id }}/close" class="card form">
+  {{ csrf_field }}
+  <input type="hidden" name="expected" value="{{ rows | length }}">
+  <div class="field narrow-field">
+    <label for="confirm-year">{% if rows %}ยืนยันบันทึก {{ "{:,}".format(rows | length) }} ชิ้นข้างบนเป็น “ไม่พบ” และปิดรอบ:{% else %}ยืนยันปิดรอบ:{% endif %}
+      พิมพ์ปีงบประมาณ <strong>{{ check.fiscal_year }}</strong></label>
+    <input id="confirm-year" name="confirm_year" inputmode="numeric" maxlength="4" autocomplete="off" required>
+  </div>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-danger">ปิดรอบตรวจสอบพัสดุ</button>
+    <a href="/inventory/{{ check.id }}">ยังไม่ปิด กลับไปตรวจต่อ</a>
+  </div>
+  <p class="hint">ระบบสำรองฐานข้อมูลไว้ใน backups\ ให้ก่อนปิดรอบทุกครั้ง · ปิดแล้ว admin เปิดกลับได้ภายใน 7 วัน
+    · หลังปิดรอบ ระบบจะแสดงข้อเสนอเปลี่ยนสถานะให้กดยืนยันทีละกลุ่ม ไม่เปลี่ยนทะเบียนเอง</p>
+</form>
+{% endblock %}

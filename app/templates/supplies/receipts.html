@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}ใบรับวัสดุ{% endblock %}
+{% block content %}
+<div class="page-head page-head-row">
+  <div><h1>วัสดุสิ้นเปลือง</h1><p class="muted">ประวัติรับเข้า (ล่าสุดก่อน แสดงไม่เกิน 200 ใบ · Excel มีครบทุกใบตามตัวกรอง แยกเป็นบรรทัดวัสดุ)</p></div>
+  {% if user and user.can_edit %}<div class="head-actions"><a class="btn" href="/supplies/receive">บันทึกรับเข้า</a></div>{% endif %}
+</div>
+{% include "supplies/_tabs.html" %}
+{# กรองทันทีเมื่อเปลี่ยนเดือน (static/js/autofilter.js) แทนที่เฉพาะ #receipt-results · ปิด JavaScript ใช้ปุ่มใน noscript #}
+<form id="receipt-filters" class="filters" method="get" action="/supplies/receipts" role="search" data-autofilter
+      hx-get="/supplies/receipts" hx-trigger="krupan:filter" hx-target="#receipt-results" hx-select="#receipt-results"
+      hx-swap="outerHTML" hx-indicator="#receipt-results" hx-sync="this:replace">
+  <div class="field"><label for="month">เดือน</label><input id="month" type="month" name="month" value="{{ month }}"></div>
+  <noscript><button type="submit" class="btn btn-secondary">แสดง</button></noscript>
+</form>
+<div id="receipt-results" class="results">
+<div class="results-meta">
+  <p class="count">{% if month %}ตรงกับตัวกรอง {{ rows | length }} ใบ{% else %}{{ rows | length }} ใบ{% endif %}</p>
+  <span class="results-links">
+    {% if month %}<a class="clear" href="/supplies/receipts" data-filter-clear="#receipt-filters">ล้างตัวกรอง</a>{% endif %}
+    {% set xlsx_url = "/supplies/receipts.xlsx" %}{% include "supplies/_xlsx_link.html" with context %}
+  </span>
+</div>
+{% if rows %}
+<div class="table-wrap">
+  <table class="assets supply-table stack-table">
+    <thead><tr><th scope="col">ใบรับ</th><th scope="col">วันที่รับ</th><th scope="col">แหล่งที่ได้</th>
+      <th scope="col">เลขที่เอกสาร</th><th scope="col" class="num">รายการ</th><th scope="col">สถานะ</th></tr></thead>
+    <tbody>
+      {% for r in rows %}
+      <tr {% if r.cancelled_at %}class="inactive"{% endif %}>
+        <td class="stack-main nowrap"><a href="/supplies/receipts/{{ r.id }}">#{{ r.id }}</a></td>
+        <td class="stack-inline nowrap" data-label="วันที่รับ">{{ r.received_date | thai_date }}</td>
+        <td data-label="แหล่งที่ได้">{{ r.source }}</td>
+        <td data-label="เลขที่เอกสาร">{{ r.doc_no or "" }}</td>
+        <td class="num stack-inline" data-label="รายการ">{{ r.n_lines }}</td>
+        <td class="stack-inline">{% if r.cancelled_at %}<span class="badge badge-muted">ยกเลิกแล้ว</span>{% else %}<span class="badge badge-ok">รับแล้ว</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty"><p>{% if month %}ไม่มีใบรับตามตัวกรองนี้{% else %}ยังไม่มีใบรับ{% endif %}</p></div>
+{% endif %}
+</div>
+{% endblock %}

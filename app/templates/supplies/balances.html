@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}ยอดคงเหลือวัสดุ{% endblock %}
+{% block content %}
+<div class="page-head page-head-row">
+  <div>
+    <h1>วัสดุสิ้นเปลือง</h1>
+    <p class="muted">ยอดคงเหลือคำนวณจากรายการรับ–จ่าย–ปรับยอดทั้งหมด เป็นหน่วยหลักของแต่ละรายการ</p>
+  </div>
+  {% if user and user.can_edit %}
+  <div class="head-actions">
+    <a class="btn" href="/supplies/issue">บันทึกเบิกจ่าย</a>
+    <a class="btn btn-secondary" href="/supplies/receive">บันทึกรับเข้า</a>
+  </div>
+  {% endif %}
+</div>
+{% include "supplies/_tabs.html" %}
+
+{% if n_out or n_low %}
+<p class="notice notice-warn low-banner" role="status">
+  <span><strong>วัสดุใกล้หมด:</strong>
+    {% if n_out %}หมดแล้ว {{ n_out }} รายการ{% endif %}{% if n_out and n_low %} · {% endif %}{% if n_low %}ต่ำกว่าจุดสั่งซื้อ {{ n_low }} รายการ{% endif %}</span>
+  <a href="/supplies/low">ดูรายการที่ต้องสั่งซื้อ</a>
+</p>
+{% endif %}
+
+{# ตัวกรองอัตโนมัติ (static/js/autofilter.js): เลือกหมวด/ติ๊กกรองทันที พิมพ์ค้นหากรองหลังหยุดพิมพ์ #}
+<form id="balance-filters" class="filters" method="get" action="/supplies" role="search" data-autofilter
+      hx-get="/supplies" hx-trigger="krupan:filter" hx-target="#balances" hx-indicator="#balances" hx-sync="this:replace">
+  <div class="field field-search">
+    <label for="q">ค้นหารายการ</label>
+    <input id="q" type="search" name="q" value="{{ f.q }}" placeholder="เช่น ปากกา, A4, หมึก" autocomplete="off">
+  </div>
+  <div class="field">
+    <label for="category">หมวด</label>
+    <select id="category" name="category">
+      <option value="">ทุกหมวด</option>
+      {% for c in cats %}<option value="{{ c.id }}" {% if f.category == c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label for="as_of">ยอด ณ วันที่</label>
+    <input id="as_of" type="date" name="as_of" value="{{ f.as_of or '' }}" max="{{ today }}" data-empty-label="วันนี้">
+  </div>
+  <label class="check">
+    <input type="checkbox" name="low" value="1" {% if f.low %}checked{% endif %}>
+    <span>เฉพาะหมดแล้ว / ต่ำกว่าจุดสั่งซื้อ</span>
+  </label>
+  <noscript><button type="submit" class="btn">ค้นหา</button></noscript>
+</form>
+
+<div id="balances" class="results">
+  {% include "supplies/_balances.html" %}
+</div>
+{% endblock %}

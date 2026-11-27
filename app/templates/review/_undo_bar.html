@@ -1,0 +1,9 @@
+<span><strong>ตรวจแล้ว</strong> · {{ undo.flag }} <span class="muted">— {{ undo.name }}</span></span>
+<form method="post" action="/review/undo" class="inline"
+      {% if not page_bar %}hx-post="/review/undo" hx-target="closest tr" hx-swap="outerHTML"{% endif %}>
+  {{ csrf_field }}
+  <input type="hidden" name="audit_id" value="{{ undo.audit_id }}">
+  <input type="hidden" name="group" value="{{ group[0] }}">
+      {% if q %}<input type="hidden" name="q" value="{{ q }}">{% if all_mode %}<input type="hidden" name="all" value="1">{% endif %}{% endif %}
+  <button type="submit" class="link-btn">ยกเลิก</button>
+</form>

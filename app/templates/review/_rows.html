@@ -1,0 +1,33 @@
+{# ผลลัพธ์ของกลุ่มที่เลือก (หรือทุกกลุ่มเมื่อค้นทุกกลุ่ม) ส่วนนี้ถูกแทนที่ตอนพิมพ์ค้นหา #}
+<div id="review-rows" class="results review-results">
+  {% if rows %}
+  <div class="table-wrap">
+    <table class="assets review-table">
+      {# ความกว้างคอลัมน์คงที่ (table-layout: fixed ใน app.css) ไม่มีปุ่มแก้ไข (viewer) คอลัมน์อื่นขยายตามสัดส่วน #}
+      <colgroup>
+        <col class="c-reg"><col class="c-name"><col class="c-flags"><col class="c-facts"><col class="c-source">
+        {% if can_edit %}<col class="c-actions">{% endif %}
+      </colgroup>
+      <thead>
+        <tr>
+          <th scope="col">เลขทะเบียน</th>
+          <th scope="col">ชื่อรายการ</th>
+          <th scope="col">ปัญหา</th>
+          <th scope="col">ข้อมูลตอนนี้</th>
+          <th scope="col">ต้นฉบับ</th>
+          {% if can_edit %}<th scope="col"><span class="sr-only">ดำเนินการ</span></th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+          {% include "review/_row.html" %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% elif q %}
+  <div class="empty"><p>ไม่พบ “{{ q }}” {% if all_mode %}ในทุกกลุ่ม{% else %}ในกลุ่มนี้{% if not all_mode %} · ลองติ๊ก “ค้นทุกกลุ่ม”{% endif %}{% endif %}</p></div>
+  {% else %}
+  <div class="empty"><p>ไม่มีรายการในกลุ่มนี้แล้ว</p></div>
+  {% endif %}
+</div>

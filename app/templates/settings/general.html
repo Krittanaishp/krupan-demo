@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}ตั้งค่า{% endblock %}
+{% macro err(name) %}{% if errors.get(name) %}<p class="field-error" id="{{ name }}-error">{{ errors[name] }}</p>{% endif %}{% endmacro %}
+{% block content %}
+{% include "settings/_tabs.html" %}
+<div class="page-head">
+  <h1>ชื่อหน่วยงาน</h1>
+  <p class="muted">ใช้แสดงในหน้าเว็บ สติกเกอร์ และรายงาน แก้แล้วมีผลทันที (สติกเกอร์ที่พิมพ์ไปแล้วไม่เปลี่ยน)</p>
+</div>
+
+{% if errors %}<div class="form-error" role="alert"><p class="review-title">บันทึกไม่ได้ ตรวจช่องที่มีข้อความสีแดง</p></div>{% endif %}
+
+<form method="post" action="/settings/org" class="card edit-form org-form" novalidate>
+  {{ csrf_field }}
+  {% for key, label, hint in fields %}
+  {% set name = "display" if key == "ORG_DISPLAY_NAME" else "report" %}
+  <div class="field">
+    <label for="{{ key }}">{{ label }}</label>
+    <input id="{{ key }}" name="{{ name }}" value="{{ values[key] }}" maxlength="120" required
+           aria-describedby="{{ key }}-hint{% if errors.get(key) %} {{ key }}-error{% endif %}"
+           {% if errors.get(key) %}aria-invalid="true"{% endif %}>
+    <p class="hint" id="{{ key }}-hint">{{ hint }}</p>
+    {{ err(key) }}
+  </div>
+  {% endfor %}
+  <div class="org-preview">
+    <p class="muted small">ตัวอย่างบรรทัดใต้หัวรายงานทะเบียน</p>
+    <p>{{ preview_line }}</p>
+  </div>
+  <div class="form-actions"><button type="submit" class="btn">บันทึก</button></div>
+</form>
+{% endblock %}

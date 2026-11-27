@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}รวมห้อง{% endblock %}
+{% block content %}
+{% include "places/_head.html" %}
+<div class="page-head">
+  <h2>รวมห้องที่ซ้ำกัน</h2>
+  <p class="muted">เลือกห้องที่จะเก็บไว้ ครุภัณฑ์ทั้งหมด {{ total }} ชิ้นของห้องที่เลือกจะอยู่ห้องนี้</p>
+</div>
+
+{% if blocked %}<div class="form-error" role="alert"><p>{{ blocked }}</p></div>{% endif %}
+
+<form method="post" action="/places/merge" class="card edit-form">
+  {{ csrf_field }}
+  <fieldset>
+    <legend>ห้องที่จะเก็บไว้</legend>
+    {% for r in rooms %}
+    <input type="hidden" name="ids" value="{{ r.id }}">
+    <label class="check">
+      <input type="radio" name="keep" value="{{ r.id }}" {% if r.id == keep %}checked{% endif %} {% if not r.active %}disabled{% endif %}>
+      <span>{{ r.name }} <span class="muted">· {{ r.n }} ชิ้น{% if not r.active %} · ปิดใช้งาน (เลือกเก็บไว้ไม่ได้){% endif %}</span></span>
+    </label>
+    {% endfor %}
+  </fieldset>
+  <ul class="hint-list">
+    <li>ห้องอื่นจะถูกปิดใช้งานและบันทึกว่ารวมเข้ากับห้องที่เก็บไว้ (ไม่ลบ ประวัติการย้ายและรอบตรวจสอบพัสดุเดิมยังแสดงชื่อห้องเดิม)</li>
+    <li>ประวัติของครุภัณฑ์แต่ละชิ้นบันทึกเหตุผล “รวมห้องซ้ำ” ซึ่งไม่นับเป็นการย้ายจริง</li>
+    <li>ยกเลิกการรวมได้ภายใน 1 วัน ที่แท็บ “ห้อง”</li>
+    <li>ถ้าเป็นห้องเดียวกันแต่ชื่อไม่ถูก ให้เปลี่ยนชื่อห้องแทนการรวม</li>
+  </ul>
+  <div class="form-actions">
+    <button type="submit" class="btn" {% if blocked %}disabled{% endif %}>รวม {{ rooms | length }} ห้อง</button>
+    <a class="btn btn-secondary" href="/places">ยกเลิก</a>
+  </div>
+</form>
+{% endblock %}

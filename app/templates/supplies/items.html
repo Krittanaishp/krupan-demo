@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}รายการวัสดุ{% endblock %}
+{% block content %}
+<div class="page-head page-head-row">
+  <div>
+    <h1>วัสดุสิ้นเปลือง</h1>
+    <p class="muted">หมวด → รายการ แต่ละรายการมีหน่วยหลัก (หน่วยที่จ่ายออก) จุดสั่งซื้อ และหน่วยใหญ่ที่ใช้ตอนรับเข้า</p>
+  </div>
+  <div class="head-actions">
+    {% if user and user.can_edit %}<a class="btn" href="/supplies/items/new">เพิ่มรายการ</a>{% endif %}
+    <a class="btn btn-secondary" href="/supplies/categories">หมวดวัสดุ</a>
+  </div>
+</div>
+{% include "supplies/_tabs.html" %}
+
+{# ตัวกรองอัตโนมัติ (static/js/autofilter.js) แทนที่เฉพาะ #item-results · Excel ส่งออกตามตัวกรองในรูปแบบแบบฟอร์มนำเข้า #}
+<form id="item-filters" class="filters" method="get" action="/supplies/items" role="search" data-autofilter
+      hx-get="/supplies/items" hx-trigger="krupan:filter" hx-target="#item-results" hx-select="#item-results"
+      hx-swap="outerHTML" hx-indicator="#item-results" hx-sync="this:replace">
+  <div class="field field-search">
+    <label for="item-q">ค้นหารายการ</label>
+    <input id="item-q" type="search" name="q" value="{{ f.q }}" placeholder="เช่น ปากกา, A4, หมึก" autocomplete="off">
+  </div>
+  <div class="field">
+    <label for="item-category">หมวด</label>
+    <select id="item-category" name="category">
+      <option value="">ทุกหมวด</option>
+      {% for c in cats %}<option value="{{ c.id }}" {% if f.category == c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label for="item-status">สถานะ</label>
+    <select id="item-status" name="status">
+      {% for value, label in statuses %}<option value="{{ value }}" {% if f.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+  </div>
+  <noscript><button type="submit" class="btn">ค้นหา</button></noscript>
+</form>
+
+<div id="item-results" class="results">
+{% set filtered = f.q or f.category or f.status %}
+<div class="results-meta">
+  <p class="count">{{ rows | length }} รายการ{% if filtered %} (จากทั้งหมด {{ n_items }}){% endif %}</p>
+  <span class="results-links">
+    {% if filtered %}<a class="clear" href="/supplies/items" data-filter-clear="#item-filters">ล้างตัวกรอง</a>{% endif %}
+    {% set xlsx_url = "/supplies/items.xlsx" %}{% include "supplies/_xlsx_link.html" with context %}
+  </span>
+</div>
+{% if rows %}
+<div class="table-wrap">
+  <table class="assets supply-table stack-table">
+    <thead>
+      <tr>
+        <th scope="col">รายการ</th>
+        <th scope="col">หมวด</th>
+        <th scope="col">หน่วยหลัก</th>
+        <th scope="col">หน่วยรับเข้า</th>
+        <th scope="col" class="num">เตือนเมื่อเหลือต่ำกว่า</th>
+        <th scope="col" class="num">คงเหลือ</th>
+        <th scope="col">สถานะ</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr {% if not r.active %}class="inactive"{% endif %}>
+        <td class="stack-main name"><a href="/supplies/items/{{ r.id }}">{{ r.name }}</a></td>
+        <td data-label="หมวด">{{ r.category }}</td>
+        <td class="stack-inline" data-label="หน่วยหลัก">{{ r.base_unit }}</td>
+        <td data-label="หน่วยรับเข้า">{% for u in r.units %}{{ u.name }} = {{ "{:,}".format(u.factor) }} {{ r.base_unit }}{% if not loop.last %} · {% endif %}{% else %}<span class="muted">—</span>{% endfor %}</td>
+        <td class="num stack-inline" data-label="เตือนเมื่อเหลือต่ำกว่า">{{ "{:,}".format(r.reorder_point) if r.reorder_point is not none else "—" }}</td>
+        <td class="num stack-inline" data-label="คงเหลือ">{{ "{:,}".format(r.balance) }}</td>
+        <td class="stack-inline">{% if not r.active %}<span class="badge badge-muted">ปิดใช้งาน</span>{% else %}<span class="badge badge-ok">ใช้งาน</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% elif filtered %}
+<div class="empty"><p>ไม่มีรายการวัสดุตามตัวกรองนี้</p></div>
+{% else %}
+<div class="empty">
+  <p>ยังไม่มีรายการวัสดุ</p>
+  {% if user and user.can_edit %}<p><a href="/supplies/import">นำเข้าจาก Excel</a> · <a href="/supplies/items/new">เพิ่มทีละรายการ</a>{% if not cats %} (เพิ่ม<a href="/supplies/categories">หมวด</a>ก่อน){% endif %}</p>{% endif %}
+</div>
+{% endif %}
+</div>
+{% endblock %}

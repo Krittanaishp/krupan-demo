@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}ผู้ใช้ระบบ{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>ผู้ใช้ระบบ</h1>
+  <p class="muted">เฉพาะผู้ดูแลระบบ · ลบผู้ใช้ไม่ได้เพราะประวัติการแก้ไขอ้างถึง ใช้ “ปิดใช้งาน” แทน
+    · ต้องมี admin ที่ใช้งานได้อย่างน้อย 1 คนเสมอ</p>
+</div>
+
+<form method="post" action="/users" class="card user-add">
+  {{ csrf_field }}
+  <h2>เพิ่มผู้ใช้</h2>
+  {% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
+  <div class="form-grid">
+    <div class="field">
+      <label for="u-name">ชื่อผู้ใช้</label>
+      <input id="u-name" name="username" value="{{ form.username or '' }}" required autocomplete="off"
+             autocapitalize="none" spellcheck="false" pattern="[a-z0-9._\-]{3,32}">
+      <p class="hint">a-z 0-9 . _ - ยาว 3-32 ตัว</p>
+    </div>
+    <div class="field">
+      <label for="u-display">ชื่อที่แสดง</label>
+      <input id="u-display" name="display_name" value="{{ form.display_name or '' }}" maxlength="100">
+    </div>
+    <div class="field">
+      <label for="u-role">สิทธิ์</label>
+      <select id="u-role" name="role">
+        {% for r in roles %}<option value="{{ r }}" {% if form.role == r %}selected{% endif %}>{{ ROLE_LABELS[r] }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field"></div>
+    <div class="field">
+      <label for="u-pw">รหัสผ่าน</label>
+      <input id="u-pw" name="password" type="password" required minlength="{{ min_password }}" autocomplete="new-password">
+      <p class="hint">อย่างน้อย {{ min_password }} ตัวอักษร</p>
+    </div>
+    <div class="field">
+      <label for="u-pw2">รหัสผ่านอีกครั้ง</label>
+      <input id="u-pw2" name="password2" type="password" required minlength="{{ min_password }}" autocomplete="new-password">
+    </div>
+  </div>
+  <label class="check">
+    <input type="checkbox" name="force_change" value="1" {% if form.get("force_change", 1) %}checked{% endif %}>
+    <span>บังคับเปลี่ยนรหัสผ่านเมื่อเข้าระบบครั้งแรก</span>
+  </label>
+  <div><button type="submit" class="btn">เพิ่มผู้ใช้</button></div>
+</form>
+
+<div class="table-wrap">
+  <table class="assets manage-table users-table stack-table">
+    <thead>
+      <tr>
+        <th scope="col">ชื่อผู้ใช้</th>
+        <th scope="col">ชื่อที่แสดง / สิทธิ์</th>
+        <th scope="col">สถานะ</th>
+        <th scope="col">รีเซ็ตรหัสผ่าน</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in rows %}
+      <tr {% if not u.active %}class="inactive"{% endif %}>
+        <td class="reg stack-main">
+          {{ u.username }}
+          {% if u.id == user.id %}<span class="tag">คุณ</span>{% endif %}
+          {% if u.last_edit %}<div class="muted small">แก้ข้อมูลล่าสุด {{ u.last_edit | thai_datetime }}</div>{% endif %}
+        </td>
+        {% if u.is_system %}
+        <td colspan="3" class="muted">{{ u.display_name }} · บัญชีของสคริปต์แก้ข้อมูล ใช้บันทึกประวัติ เข้าสู่ระบบไม่ได้</td>
+        {% else %}
+        <td data-label="ชื่อที่แสดง / สิทธิ์">
+          <form method="post" action="/users/{{ u.id }}" class="type-form">
+            {{ csrf_field }}
+            <label class="sr-only" for="disp-{{ u.id }}">ชื่อที่แสดงของ {{ u.username }}</label>
+            <input id="disp-{{ u.id }}" name="display_name" value="{{ u.display_name or '' }}" maxlength="100" placeholder="ชื่อที่แสดง">
+            <label class="sr-only" for="role-{{ u.id }}">สิทธิ์ของ {{ u.username }}</label>
+            <select id="role-{{ u.id }}" name="role" class="role-select">
+              {% for r in roles %}<option value="{{ r }}" {% if u.role == r %}selected{% endif %}>{{ ROLE_LABELS[r] }}</option>{% endfor %}
+            </select>
+            <button type="submit" class="btn btn-small btn-secondary">บันทึก</button>
+          </form>
+        </td>
+        <td class="actions">
+          {% if u.active %}<span class="badge badge-ok">ใช้งาน</span>{% else %}<span class="badge badge-muted">ปิดใช้งาน</span>{% endif %}
+          {% if u.must_change_password %}<span class="badge badge-warn">ต้องเปลี่ยนรหัส</span>{% endif %}
+          {% if u.id != user.id %}
+          <form method="post" action="/users/{{ u.id }}/active" class="inline">
+            {{ csrf_field }}
+            <input type="hidden" name="active" value="{{ 0 if u.active else 1 }}">
+            <button type="submit" class="btn btn-small btn-secondary">{{ "ปิดใช้งาน" if u.active else "เปิดใช้งาน" }}</button>
+          </form>
+          {% endif %}
+        </td>
+        <td data-label="รีเซ็ตรหัสผ่าน">
+          <form method="post" action="/users/{{ u.id }}/password" class="type-form">
+            {{ csrf_field }}
+            <label class="sr-only" for="pw-{{ u.id }}">รหัสผ่านใหม่ของ {{ u.username }}</label>
+            <input id="pw-{{ u.id }}" name="password" type="password" minlength="{{ min_password }}" required
+                   autocomplete="new-password" placeholder="รหัสผ่านใหม่">
+            <label class="sr-only" for="pw2-{{ u.id }}">รหัสผ่านใหม่อีกครั้ง</label>
+            <input id="pw2-{{ u.id }}" name="password2" type="password" minlength="{{ min_password }}" required
+                   autocomplete="new-password" placeholder="อีกครั้ง">
+            {% if u.id != user.id %}
+            <label class="check small"><input type="checkbox" name="force_change" value="1" checked><span>บังคับเปลี่ยนเมื่อเข้าระบบ</span></label>
+            {% endif %}
+            <button type="submit" class="btn btn-small btn-secondary">ตั้งรหัสใหม่</button>
+          </form>
+        </td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

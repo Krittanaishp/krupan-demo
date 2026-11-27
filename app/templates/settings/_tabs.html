@@ -1,0 +1,7 @@
+<nav class="settings-tabs" aria-label="หัวข้อตั้งค่า">
+  <a href="/settings" {% if request.url.path == "/settings" %}aria-current="page"{% endif %}>ทั่วไป</a>
+  {% if qr_enabled() %}<a href="/settings/network" {% if request.url.path == "/settings/network" %}aria-current="page"{% endif %}>ที่อยู่สำหรับ QR</a>{% endif %}
+  <a href="/settings/backup" {% if request.url.path == "/settings/backup" %}aria-current="page"{% endif %}>สำรองข้อมูล</a>
+  <a href="/settings/supplies" {% if request.url.path == "/settings/supplies" %}aria-current="page"{% endif %}>วัสดุ</a>
+  <a href="/settings/rooms" {% if request.url.path == "/settings/rooms" %}aria-current="page"{% endif %}>จัดห้อง</a>
+</nav>

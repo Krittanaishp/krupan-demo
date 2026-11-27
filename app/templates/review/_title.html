@@ -1,0 +1,4 @@
+<h2 class="group-title" id="review-title" {% if oob %}hx-swap-oob="true"{% endif %}>
+  {% if all_mode %}ผลค้นหา “{{ q }}” ทุกกลุ่ม <span class="muted">· {{ rows | length }} รายการ</span>
+  {% else %}{{ group[1] }} <span class="muted">· {{ group[2] }}{% if q %} · พบ {{ rows | length }} รายการ{% endif %}</span>{% endif %}
+</h2>

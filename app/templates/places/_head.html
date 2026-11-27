@@ -1,0 +1,11 @@
+{# หัวหน้า "ห้องและผู้รับผิดชอบ": 3 แท็บ (ห้อง / ผู้รับผิดชอบ / จัดห้องจากข้อมูลเดิม) แต่ละแท็บมีลิงก์ของตัวเอง #}
+<div class="page-head">
+  <h1>ห้องและผู้รับผิดชอบ</h1>
+</div>
+<nav class="settings-tabs place-tabs" aria-label="หัวข้อ">
+  <a href="/places" {% if place_tab == "rooms" %}aria-current="page"{% endif %}>ห้อง</a>
+  <a href="/places/staff" {% if place_tab == "staff" %}aria-current="page"{% endif %}>ผู้รับผิดชอบ</a>
+  {% if user and user.can_edit %}
+  <a href="/places/mapping" {% if place_tab == "mapping" %}aria-current="page"{% endif %}>จัดห้องจากข้อมูลเดิม</a>
+  {% endif %}
+</nav>

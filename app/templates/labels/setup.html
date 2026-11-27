@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}พิมพ์สติกเกอร์ QR{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>พิมพ์สติกเกอร์ QR</h1>
+  <p class="muted">เลือกครุภัณฑ์ ตั้งค่าแผ่นสติกเกอร์ แล้วกด “แสดงแผ่นสำหรับพิมพ์” (เปิดแท็บใหม่ แล้วสั่งพิมพ์จากแท็บนั้น)</p>
+</div>
+
+{# ฟอร์ม GET: ค่าทั้งหมดอยู่ใน URL แชร์/กดย้อนกลับได้; htmx อัปเดตสรุปจำนวนดวงเมื่อมีการเปลี่ยน #}
+<form id="label-form" action="/labels/sheet" method="get" target="_blank" class="label-setup"
+      hx-get="/labels/summary" hx-trigger="change, input delay:500ms" hx-target="#label-summary"
+      hx-swap="innerHTML">
+  <section class="card">
+    <h2>1. เลือกครุภัณฑ์</h2>
+    <div class="mode-tabs" role="radiogroup" aria-label="วิธีเลือกครุภัณฑ์">
+      {% for key, label in modes.items() %}
+      <label class="check mode-tab"><input type="radio" name="mode" value="{{ key }}" {% if mode == key %}checked{% endif %}
+             data-mode-tab><span>{{ label }}</span></label>
+      {% endfor %}
+    </div>
+
+    <div class="mode-panel" data-mode="room" {% if mode != "room" %}hidden{% endif %}>
+      <div class="field">
+        <label for="room">ห้อง</label>
+        <select id="room" name="room">
+          <option value="">— เลือกห้อง —</option>
+          {% for l in locations %}<option value="{{ l.id }}" {% if params.room == l.id | string %}selected{% endif %}>{{ l.name }} ({{ l.n }})</option>{% endfor %}
+          <option value="{{ NO_LOCATION }}" {% if params.room == NO_LOCATION %}selected{% endif %}>ยังไม่จัดเข้าห้อง ({{ no_location_count }})</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="mode-panel" data-mode="filter" {% if mode != "filter" %}hidden{% endif %}>
+      <div class="filters filters-flat">
+        <div class="field field-search">
+          <label for="lq">ค้นหา</label>
+          <input id="lq" name="q" type="search" value="{{ f.q }}" class="js-live" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="lcat">หมวด</label>
+          <select id="lcat" name="category">
+            <option value="">ทุกหมวด</option>
+            {% for c in categories %}<option value="{{ c.code }}" {% if f.category == c.code %}selected{% endif %}>{{ c.name }} ({{ c.n }})</option>{% endfor %}
+            {% if no_category_count %}<option value="{{ NO_CATEGORY }}" {% if f.category == NO_CATEGORY %}selected{% endif %}>ไม่มีรหัสประเภท ({{ no_category_count }})</option>{% endif %}
+          </select>
+        </div>
+        <div class="field">
+          <label for="lstatus">สถานะ</label>
+          <select id="lstatus" name="status">
+            <option value="">ทุกสถานะ</option>
+            {% for s in statuses %}<option value="{{ s }}" {% if f.status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label for="lfy">ปีงบประมาณ</label>
+          <select id="lfy" name="fy">
+            <option value="">ทุกปี</option>
+            {% for y in fiscal_years %}<option value="{{ y }}" {% if f.fy == y %}selected{% endif %}>{{ y }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label for="lloc">ห้อง</label>
+          <select id="lloc" name="loc">
+            <option value="">ทุกห้อง</option>
+            {% for l in locations %}<option value="{{ l.id }}" {% if f.loc == l.id | string %}selected{% endif %}>{{ l.name }} ({{ l.n }})</option>{% endfor %}
+            <option value="{{ NO_LOCATION }}" {% if f.loc == NO_LOCATION %}selected{% endif %}>ยังไม่จัดเข้าห้อง ({{ no_location_count }})</option>
+          </select>
+        </div>
+        {% if f.loc_text %}<input type="hidden" name="loc_text" value="{{ f.loc_text }}">{% endif %}
+        <label class="check"><input type="checkbox" name="unprinted" value="1" {% if f.unprinted %}checked{% endif %}>
+          <span>ยังไม่ได้พิมพ์สติกเกอร์ ({{ unprinted_count }})</span></label>
+        <label class="check"><input type="checkbox" name="review" value="1" {% if f.review %}checked{% endif %}>
+          <span>เฉพาะรอตรวจสอบ</span></label>
+      </div>
+    </div>
+
+    <div class="mode-panel" data-mode="pick" {% if mode != "pick" %}hidden{% endif %}>
+      <div class="pick-tools">
+        <label class="sr-only" for="pick-filter">กรองรายการที่แสดง</label>
+        <input id="pick-filter" type="search" placeholder="พิมพ์เพื่อกรองรายการด้านล่าง" data-filter-list="#pick-list" autocomplete="off">
+        <button type="button" class="btn btn-small btn-secondary" data-check-visible="#pick-list">ติ๊กทั้งหมดที่แสดง</button>
+        <button type="button" class="btn btn-small btn-secondary" data-uncheck-all="#pick-list">ล้างที่ติ๊ก</button>
+      </div>
+      <ul id="pick-list" class="pick-list">
+        {% for r in all_assets %}
+        <li data-text="{{ (r.reg_no or r.temp_code) ~ ' ' ~ r.name ~ ' ' ~ (r.location_name or r.location_text or '') }}">
+          <label class="check">
+            <input type="checkbox" name="ids" value="{{ r.id }}" {% if r.id in picked %}checked{% endif %}>
+            <span><strong class="reg">{{ r.reg_no or r.temp_code }}</strong> {{ r.name }}
+              <span class="muted small">· {{ r.location_name or r.location_text or "—" }}{% if not r.label_printed_at %} · ยังไม่เคยพิมพ์{% endif %}</span></span>
+          </label>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>2. แผ่นสติกเกอร์</h2>
+    <div class="preset-line">
+      <div class="field">
+        <label for="preset">รูปแบบที่บันทึกไว้ (preset)</label>
+        <select id="preset" name="preset" hx-get="/labels/layout-fields" hx-target="#layout-fields" hx-swap="outerHTML"
+                hx-trigger="change" hx-include="this">
+          {% for p in presets %}<option value="{{ p.id }}" {% if p.id == preset.id %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+    {% include "labels/_layout_fields.html" %}
+    <div class="preset-save">
+      <div class="field">
+        <label for="preset_name">บันทึกค่าด้านบนเป็น preset ชื่อ</label>
+        <input id="preset_name" name="preset_name" maxlength="100" placeholder="เช่น Avery L7160 ของห้องพัสดุ">
+      </div>
+      <button type="button" class="btn btn-secondary" hx-post="/labels/presets" hx-include="#label-form"
+              hx-target="#preset-msg">บันทึก preset</button>
+      <div id="preset-msg"></div>
+    </div>
+    <div class="field start-field">
+      <label for="start">เริ่มพิมพ์ที่ดวงที่</label>
+      <input id="start" name="start" value="{{ start }}" inputmode="numeric" class="js-live" maxlength="3">
+      <p class="hint">นับจากซ้ายไปขวา บนลงล่าง ใช้กับแผ่นที่เหลือจากครั้งก่อน (ดวงที่ 1 = มุมซ้ายบน)</p>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>3. พิมพ์</h2>
+    <div id="label-summary" aria-live="polite">{% include "labels/_summary.html" %}</div>
+    <div class="print-actions">
+      <button type="submit" class="btn">แสดงแผ่นสำหรับพิมพ์</button>
+      <button type="submit" class="btn btn-secondary" name="border" value="1">พิมพ์ทดสอบเส้นขอบ</button>
+    </div>
+    <p class="hint">พิมพ์ทดสอบเส้นขอบบนกระดาษธรรมดา แล้ววางทาบกับแผ่นสติกเกอร์จริงกับแสงไฟ ถ้าไม่ตรงให้ปรับขอบบน/ซ้าย</p>
+  </section>
+</form>
+
+{% if not preset.builtin %}
+<form method="post" action="/labels/presets/{{ preset.id }}/delete" class="inline">
+  {{ csrf_field }}
+  <button type="submit" class="btn btn-small btn-danger">ลบ preset “{{ preset.name }}”</button>
+</form>
+{% endif %}
+{% endblock %}

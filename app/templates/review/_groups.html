@@ -1,0 +1,8 @@
+<nav id="review-groups" class="group-tabs" aria-label="กลุ่มปัญหา" {% if oob %}hx-swap-oob="true"{% endif %}>
+  {% for g in summary %}
+    <a href="/review?group={{ g.key }}{% if q %}&amp;q={{ q | urlencode }}{% endif %}"
+       {% if g.key == group[0] and not all_mode %}aria-current="page"{% endif %} title="{{ g.desc }}">
+      {{ g.label }} <span class="count-pill">{{ g.n }}</span>
+    </a>
+  {% endfor %}
+</nav>

@@ -1,0 +1,81 @@
+/* เอกสารพิมพ์ A4 (รายงาน ใบรายการตรวจสอบพัสดุ รายงานผลการตรวจสอบพัสดุ) ตัวอักษร 16pt แบบหนังสือราชการ
+   ฟอนต์ TH SarabunIT๙ แบบไฟล์ Excel เดิม ถ้าเครื่องไม่มีใช้ TH SarabunPSK หรือ TH Sarabun New (ประกาศใน report-fonts.css
+   ซึ่งต้อง link ก่อนไฟล์นี้) */
+@page {
+  size: A4 portrait;
+  margin: 15mm 15mm 15mm 20mm;
+  @bottom-right { content: "หน้า " counter(page) " / " counter(pages); font-family: var(--report-font); font-size: 12pt; }
+}
+
+html { background: #e5e7eb; }
+body.doc {
+  margin: 0;
+  font-family: var(--report-font, "TH SarabunIT๙", "TH SarabunPSK", "TH Sarabun New", sans-serif);
+  font-size: 16pt;
+  line-height: 1.2;
+  color: #000;
+}
+.doc-page { background: #fff; width: 210mm; min-height: 297mm; margin: 0 auto 10mm; padding: 15mm 15mm 15mm 20mm; box-sizing: border-box; }
+.doc h1 { font-size: 20pt; font-weight: 700; text-align: center; margin: 0; }
+.doc .doc-sub { text-align: center; margin: 0; font-weight: 700; }
+.doc .doc-meta { text-align: center; margin: 0 0 8pt; }
+.doc h2 { font-size: 16pt; font-weight: 700; margin: 14pt 0 4pt; break-after: avoid; page-break-after: avoid; }
+.doc p { margin: 4pt 0; }
+.doc .small { font-size: 14pt; }
+.doc .muted { color: #333; }
+
+.doc table { width: 100%; border-collapse: collapse; margin: 4pt 0; table-layout: fixed; }
+.doc th, .doc td { border: 0.6pt solid #000; padding: 1pt 4pt; vertical-align: top; text-align: left; overflow-wrap: anywhere; }
+.doc th { font-weight: 700; text-align: center; vertical-align: middle; }
+.doc thead { display: table-header-group; }
+.doc tr { break-inside: avoid; page-break-inside: avoid; }
+.doc .c { text-align: center; }
+.doc .n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.doc .code { white-space: nowrap; font-size: 14pt; overflow-wrap: normal; }
+.doc .raw { font-size: 14pt; }
+.doc .box { display: inline-block; width: 11pt; height: 11pt; border: 0.8pt solid #000; vertical-align: middle; }
+.doc .blank td { height: 22pt; }
+.doc .group-row td { font-weight: 700; background: #f2f2f2; }
+
+/* ช่องลงชื่อ: แถวละ 3 คน เหมือนท้ายชีตในไฟล์ Excel เดิม */
+.signs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 26pt 10pt; margin-top: 30pt; break-inside: avoid; page-break-inside: avoid; }
+.sign { text-align: center; min-width: 0; }
+.sign p { margin: 0; }
+.sign .sign-line { white-space: nowrap; }
+
+.doc-toolbar { max-width: 210mm; margin: 0 auto; padding: 12px 0; font: 16px/1.5 "Sarabun", sans-serif; display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
+.doc-toolbar .btn { font: inherit; padding: 6px 16px; border-radius: 6px; border: 1px solid #1d4f91; background: #1d4f91; color: #fff; cursor: pointer; text-decoration: none; }
+.doc-toolbar .btn-secondary { background: #fff; color: #1d4f91; }
+.doc-toolbar .hint { color: #374151; flex-basis: 100%; margin: 0; }
+
+@media print {
+  html { background: #fff; }
+  .doc-toolbar { display: none; }
+  .doc-page { width: auto; min-height: 0; margin: 0; padding: 0; }
+}
+/* ใบรายการทีละอาคาร: ห้องถัดไปขึ้นหน้าใหม่ */
+.new-page { break-before: page; page-break-before: always; }
+/* ห้องของติดตัวบุคคล: เน้นคอลัมน์ผู้รับผิดชอบ (ต้องไปขอดูจากคน) */
+.doc .holder-col { font-weight: 700; background: #f2f2f2; border-left: 2pt solid #000; border-right: 2pt solid #000; }
+.doc thead .holder-col { background: #e0e0e0; }
+.holder-note { border: 1.5pt solid #000; padding: 4pt 8pt; margin: 6pt 0; }
+
+/* ความกว้างคอลัมน์ของหน้าพิมพ์ (แทน style="width: N%" ซึ่ง Content-Security-Policy ไม่อนุญาต) */
+.w-5 { width: 5%; }
+.w-6 { width: 6%; }
+.w-7 { width: 7%; }
+.w-8 { width: 8%; }
+.w-9 { width: 9%; }
+.w-10 { width: 10%; }
+.w-11 { width: 11%; }
+.w-12 { width: 12%; }
+.w-14 { width: 14%; }
+.w-16 { width: 16%; }
+.w-17 { width: 17%; }
+.w-18 { width: 18%; }
+.w-20 { width: 20%; }
+.w-22 { width: 22%; }
+.w-23 { width: 23%; }
+.w-25 { width: 25%; }
+.w-26 { width: 26%; }
+.w-27 { width: 27%; }

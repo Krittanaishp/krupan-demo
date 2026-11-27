@@ -1,0 +1,9 @@
+{% if rows %}
+<p class="small muted">ยังไม่ได้ตรวจ {{ rows | length }} ชิ้น</p>
+<ul class="inv-unchecked">
+  {% for r in rows %}<li><a href="/assets/{{ r.asset_id }}">{{ r.reg_no or r.temp_code }}</a> {{ r.name }}
+    {% if r.location_text and not r.expected_location_id %}<span class="muted">· {{ r.location_text }}</span>{% endif %}</li>{% endfor %}
+</ul>
+{% else %}
+<p class="ok-text">ตรวจครบทุกชิ้นแล้ว</p>
+{% endif %}

@@ -1,0 +1,50 @@
+{# กล่องตรวจสอบพัสดุประจำปี: อยู่บนสุดของหน้าสแกน QR เมื่อมีรอบที่เปิดอยู่และล็อกอินแล้ว (ฟอร์มธรรมดา ไม่ใช้ JS) #}
+{% set item = inv.item %}
+<section class="q-inv" aria-labelledby="q-inv-title">
+  <h2 id="q-inv-title">ตรวจสอบพัสดุประจำปี {{ inv.check.fiscal_year }}</h2>
+  {% if inv_error %}<p class="form-error" role="alert">{{ inv_error }}</p>{% endif %}
+  {% if item is none %}
+    <p>ชิ้นนี้ไม่อยู่ในรอบตรวจสอบพัสดุนี้ (เพิ่มเข้าทะเบียนหลังเปิดรอบ หรือจำหน่ายไปแล้วตอนเปิดรอบ)</p>
+  {% else %}
+    {% if item.result %}
+    <p class="q-inv-done {{ inv.RESULT_CLASS.get(item.result, '') }}">ตรวจแล้ว: <strong>{{ item.result }}</strong><br>
+      <span class="q-note">โดย {{ item.checked_by_name or "—" }} · {{ item.checked_at | thai_datetime }}
+        ({{ inv.METHOD_LABELS.get(item.method, item.method) }}){% if item.found_location_name %} · พบที่ {{ item.found_location_name }}{% endif %}
+        {% if item.note %}<br>หมายเหตุ: {{ item.note }}{% endif %}</span></p>
+    {% endif %}
+
+    {% if ask_move and can_edit %}
+    <div class="q-inv-ask" role="status">
+      <p>พบที่ <strong>{{ ask_move.to }}</strong> แต่ทะเบียนบันทึกไว้ว่า <strong>{{ ask_move["from"] or "ยังไม่จัดเข้าห้อง" }}</strong>
+        จะย้ายห้องในทะเบียนเป็น {{ ask_move.to }} เลยไหม</p>
+      <form method="post" action="/q/{{ canonical }}/inventory/move">
+        {{ csrf_field }}
+        <button type="submit" class="btn q-btn">ย้ายในทะเบียนเป็น {{ ask_move.to }}</button>
+      </form>
+      <a class="btn btn-secondary q-btn" href="/q/{{ canonical }}">ไม่ย้าย (บันทึกแค่ว่าพบที่ห้องนี้)</a>
+    </div>
+    {% endif %}
+
+    {% if can_edit %}
+      {% if item.result %}<details {% if inv_error %}open{% endif %}><summary>แก้ผลการตรวจ</summary>{% endif %}
+      <form method="post" action="/q/{{ canonical }}/inventory" class="q-form">
+        {{ csrf_field }}
+        <label for="q-inv-loc">ตอนนี้อยู่ที่ห้องไหน</label>
+        <select id="q-inv-loc" name="location_id">
+          {% if item.expected_location_id is none %}<option value="" {% if inv.preselect is none %}selected{% endif %}>— ไม่ระบุห้อง —</option>{% endif %}
+          {% for l in inv.locations %}<option value="{{ l.id }}" {% if l.id == inv.preselect %}selected{% endif %}>{{ l.name }}{% if not l.active %} (ปิดใช้งาน){% endif %}</option>{% endfor %}
+        </select>
+        <p class="q-note">ทะเบียน ณ วันเปิดรอบ: {{ item.expected_location_name or a.location_text or "ยังไม่จัดเข้าห้อง" }}</p>
+        <label for="q-inv-note">หมายเหตุ (ไม่บังคับ)</label>
+        <textarea id="q-inv-note" name="note" rows="2" maxlength="500">{{ item.note or "" }}</textarea>
+        <div class="q-inv-buttons">
+          <button type="submit" name="result" value="{{ inv.choices[0] }}" class="btn q-btn">{{ inv.choices[0] }}</button>
+          <button type="submit" name="result" value="{{ inv.choices[1] }}" class="btn q-btn btn-warn">{{ inv.choices[1] }}</button>
+        </div>
+      </form>
+      {% if item.result %}</details>{% endif %}
+    {% else %}
+      <p class="hint">บัญชีของคุณดูได้อย่างเดียว บันทึกผลตรวจสอบพัสดุไม่ได้</p>
+    {% endif %}
+  {% endif %}
+</section>

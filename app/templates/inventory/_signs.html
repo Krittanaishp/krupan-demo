@@ -1,0 +1,9 @@
+{# ช่องลงชื่อกรรมการตามรายชื่อในรอบ แถวละ 3 คน (รูปแบบเดียวกับท้ายชีตในไฟล์ Excel เดิม) #}
+<div class="signs">
+  {% for name, role in committee %}
+  <div class="sign">
+    <p class="sign-line">ลงชื่อ ................... {{ role }}</p>
+    <p>({{ name }})</p>
+  </div>
+  {% endfor %}
+</div>

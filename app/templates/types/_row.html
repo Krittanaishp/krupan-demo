@@ -1,0 +1,23 @@
+<tr id="type-{{ t.code }}">
+  <td class="reg stack-inline stack-main">{{ t.code }}</td>
+  <td class="stack-inline">{{ t.category_name }}</td>
+  <td class="type-name" data-label="ชื่อประเภท">
+    {% if can_edit %}
+    <form method="post" action="/types/{{ t.code }}" class="type-form"
+          hx-post="/types/{{ t.code }}" hx-target="#type-{{ t.code }}" hx-swap="outerHTML">
+      {{ csrf_field }}
+      <label class="sr-only" for="name-{{ t.code }}">ชื่อประเภท {{ t.code }}</label>
+      <input id="name-{{ t.code }}" name="name" value="{{ t.name or '' }}" required
+             {% if error %}aria-invalid="true"{% endif %}>
+      <button type="submit" class="btn btn-small">{{ "ยืนยันชื่อ" if t.name_is_draft else "บันทึก" }}</button>
+      {% if t.name_is_draft %}<span class="tag" title="ยังไม่มีคนยืนยันชื่อนี้">ชื่อร่าง</span>{% endif %}
+      {% if saved %}<span class="saved" role="status">บันทึกแล้ว</span>{% endif %}
+    </form>
+    {% if error %}<p class="field-error" role="alert">{{ error }}</p>{% endif %}
+    {% else %}
+      {{ t.name or "—" }}
+      {% if t.name_is_draft %}<span class="tag" title="ยังไม่มีคนยืนยันชื่อนี้">ชื่อร่าง</span>{% endif %}
+    {% endif %}
+  </td>
+  <td class="num stack-inline" data-label="จำนวนชิ้น">{{ t.n }}</td>
+</tr>

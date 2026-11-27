@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}รอตรวจสอบ{% endblock %}
+{% block content %}
+<div class="page-head page-head-row">
+  <div>
+    <h1>รอตรวจสอบ</h1>
+    <p class="muted" id="review-total">{% include "review/_total.html" %}</p>
+  </div>
+  {% include "review/_export.html" %}
+</div>
+
+{% if undo %}
+<div class="undo-bar undo-bar-page" role="status" data-expires-in="{{ undo_seconds * 1000 }}">
+  {% set page_bar = true %}{% include "review/_undo_bar.html" %}
+</div>
+{% endif %}
+
+{% include "review/_groups.html" %}
+
+<section class="review-group">
+  <div class="group-head">
+    {% include "review/_title.html" %}
+    {# ช่องค้นหาอยู่นอกส่วนที่ถูกแทนที่ พิมพ์ต่อได้ไม่สะดุด (ผลลัพธ์ ตัวเลขในแท็บ และลิงก์ export อัปเดตแบบ out-of-band) #}
+    <form id="review-search" class="review-search" action="/review" method="get" role="search" data-autofilter
+          hx-get="/review" hx-trigger="krupan:filter" hx-target="#review-rows" hx-swap="outerHTML"
+          hx-indicator="#review-rows" hx-sync="this:replace">
+      <input type="hidden" name="group" value="{{ group[0] }}">
+      <label class="sr-only" for="review-q">ค้นหาในรายการรอตรวจสอบ</label>
+      <input id="review-q" name="q" type="search" value="{{ q }}" autocomplete="off"
+             placeholder="ค้นหา เลขทะเบียน ชื่อ ที่ตั้ง">
+      <label class="check review-all"><input id="review-all" type="checkbox" name="all" value="1"
+             {% if all_mode %}checked{% endif %}><span>ค้นทุกกลุ่ม</span></label>
+      <noscript><button type="submit" class="btn btn-small">ค้นหา</button></noscript>
+    </form>
+  </div>
+  {% if not can_edit %}
+    <p class="hint"><a href="/login?next={{ page_url | urlencode }}">เข้าสู่ระบบ</a> ด้วยบัญชี editor เพื่อแก้ไขหรือกด “ตรวจแล้ว”</p>
+  {% endif %}
+  {% include "review/_rows.html" %}
+</section>
+{% endblock %}

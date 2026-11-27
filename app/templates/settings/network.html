@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}ตั้งค่าเครือข่าย{% endblock %}
+{% block content %}
+{% include "settings/_tabs.html" %}
+<div class="page-head">
+  <h1>ที่อยู่สำหรับ QR และมือถือ</h1>
+  <p class="muted">QR บนสติกเกอร์ฝังที่อยู่ BASE_URL ไว้ มือถือในวงแลนเดียวกันสแกนแล้วจะเปิดที่อยู่นี้</p>
+</div>
+
+{% if not ok %}
+<div class="alert-danger" role="alert">
+  <p class="review-title">{{ message }}</p>
+  <p>QR ที่พิมพ์ไปแล้วอาจใช้ไม่ได้</p>
+</div>
+{% else %}
+<p class="flash" role="status">{{ message }}</p>
+{% endif %}
+{% if note %}<div class="alert-warn" role="note"><p>{{ note }}</p></div>{% endif %}
+
+<section class="card">
+  <dl>
+    <dt>BASE_URL ปัจจุบัน</dt><dd><code>{{ base_url or "(ยังไม่ได้ตั้ง)" }}</code></dd>
+    {% if is_name %}
+    <dt>ชื่อ <code>{{ host }}</code> แปลงเป็น IP</dt>
+    <dd>{% for ip in resolved %}<code>{{ ip }}</code>{% if ip in ips %} <span class="muted">(ตรงกับเครื่องนี้)</span>{% endif %}{% if not loop.last %}<br>{% endif %}{% else %}แปลงไม่ได้{% endfor %}
+      <div class="small muted">ตรวจด้วย DNS ของเครื่องนี้ ให้ลองเปิด {{ base_url }} จากมือถือด้วย (มือถือต้องใช้ DNS ของ router เดียวกัน)</div></dd>
+    {% endif %}
+    <dt>IP ของเครื่องที่ตรวจพบ</dt>
+    <dd>{% for ip in ips %}<code>{{ ip }}</code>{% if loop.first %} <span class="muted">(ใช้ออกเครือข่าย)</span>{% endif %}{% if not loop.last %}<br>{% endif %}{% else %}ตรวจไม่พบ{% endfor %}</dd>
+    <dt>หน้านี้เปิดผ่าน</dt><dd><code>{{ seen_as }}</code></dd>
+  </dl>
+</section>
+
+<section class="card history">
+  <h2>วิธีแก้</h2>
+  <ol class="steps">
+    {% if is_name and not ok and ips %}<li>ให้ผู้ดูแล router ตั้ง local DNS ให้ชื่อ <code>{{ host }}</code> ชี้ไปที่ <code>{{ ips[0] }}</code>
+      (และจอง IP นี้ให้เครื่องนี้) หรือเปลี่ยน BASE_URL เป็น IP ตามข้อถัดไป</li>{% endif %}
+    {% if suggested %}<li>แก้บรรทัด <code>BASE_URL=</code> ในไฟล์ <code>.env</code> เป็น <code>BASE_URL={{ suggested }}</code></li>{% endif %}
+    <li>ไม่ต้องรีสตาร์ตระบบ (อ่านไฟล์ .env ใหม่ทุกครั้งที่สร้าง QR)</li>
+    <li>ทำให้ QR ไม่เสียเมื่อ IP เปลี่ยน: จอง IP ที่ router (และตั้ง local DNS ถ้า router ทำได้) ดูคู่มือติดตั้ง หัวข้อ “ทำให้ QR ไม่เสียเมื่อ IP เปลี่ยน”</li>
+    <li>วิธีเปิดให้มือถือเข้าได้และเปิด Windows Firewall ดูใน README.md</li>
+  </ol>
+</section>
+{% endblock %}

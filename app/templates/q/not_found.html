@@ -1,0 +1,15 @@
+{% extends "q/base.html" %}
+{% block title %}ไม่พบครุภัณฑ์{% endblock %}
+{% block content %}
+<article class="q-card q-missing">
+  <h1 class="q-name">ไม่พบครุภัณฑ์</h1>
+  <p>ขออภัย ไม่พบครุภัณฑ์ที่มีรหัส <strong class="q-code">{{ code or "(ว่าง)" }}</strong> ในระบบ</p>
+  <p class="q-note">สติกเกอร์อาจพิมพ์ไว้ก่อนแก้เลขทะเบียน หรือรายการนี้ถูกนำออกจากทะเบียนแล้ว
+    ลองค้นจากเลขทะเบียนหรือชื่อรายการที่เห็นบนตัวครุภัณฑ์</p>
+  <form action="/assets" method="get" class="q-form">
+    <label for="q-search">ค้นหาในทะเบียน</label>
+    <input id="q-search" name="q" type="search" value="{{ code }}">
+    <button type="submit" class="btn q-btn">ค้นหา</button>
+  </form>
+</article>
+{% endblock %}

@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% if sandbox_mode() %}[ทดลอง] {% endif %}{% block title %}วัสดุและครุภัณฑ์{% endblock %}{% if org.display %} · {{ org.display }}{% endif %}</title>
+  <link rel="icon" href="data:,">
+  <link rel="preload" href="/static/fonts/sarabun-thai-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="{{ static_url('css/app.css') }}">
+  {# กดย้อนกลับหลังกรองด้วย htmx: โหลดหน้าจาก URL ใหม่ทุกครั้ง ค่าในช่องตัวกรองกับผลตรงกันเสมอ (ไม่ใช้ภาพหน้าเก่าที่เก็บไว้) #}
+  <meta name="htmx-config" content='{"historyCacheSize": 0, "refreshOnHistoryMiss": true, "includeIndicatorStyles": false}'>
+  <script src="{{ static_url('js/htmx.min.js') }}" defer></script>
+  <script src="{{ static_url('js/app.js') }}" defer></script>
+  <script src="{{ static_url('js/combobox.js') }}" defer></script>
+  <script src="{{ static_url('js/datepicker.js') }}" defer></script>
+  <script src="{{ static_url('js/autofilter.js') }}" defer></script>
+  <script src="{{ static_url('js/doc.js') }}" defer></script>
+</head>
+{# htmx ส่ง CSRF token ใน header ทุก request (ฟอร์มปกติมี hidden field csrf_token อยู่แล้ว) #}
+<body hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'>
+  {% include "_sandbox_bar.html" %}
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="/">
+        <span class="brand-title">ระบบวัสดุและครุภัณฑ์</span>
+        {% if org.display %}<span class="brand-sub">{{ org.display }}</span>{% endif %}
+      </a>
+      {% set nav = request.url.path %}
+      {# เมนูที่ใช้น้อย (ประเภท ผู้ใช้ ตั้งค่า): จอกว้างตั้งแต่ 1280px แสดงในแถบ ถ้าแคบกว่านั้นย้ายไปอยู่ใน "เพิ่มเติม ▾" #}
+      <nav class="nav" aria-label="เมนูหลัก">
+        {# ส่วนวัสดุสิ้นเปลืองอยู่ก่อนครุภัณฑ์ (งานหลักของฝ่าย 23/11/69) ดูได้เมื่อเข้าสู่ระบบ #}
+        {% if user %}
+        <a href="/supplies" class="nav-supply" {% if nav.startswith('/supplies') and not nav.startswith('/supplies/issue') %}aria-current="page"{% endif %}>วัสดุ</a>
+        {% if user.can_edit %}<a href="/supplies/issue" class="nav-supply" {% if nav.startswith('/supplies/issue') %}aria-current="page"{% endif %}>เบิกจ่าย</a>{% endif %}
+        <span class="nav-sep" aria-hidden="true"></span>
+        {% endif %}
+        <a href="/assets" {% if nav.startswith('/assets') %}aria-current="page"{% endif %}>ทะเบียนครุภัณฑ์</a>
+        <a href="/review" {% if nav.startswith('/review') %}aria-current="page"{% endif %}>รอตรวจสอบ</a>
+        <a href="/types" class="nav-extra" {% if nav.startswith('/types') %}aria-current="page"{% endif %}>ประเภท</a>
+        <a href="/places" {% if nav.startswith('/places') or nav.startswith('/locations') or nav.startswith('/staff') %}aria-current="page"{% endif %}>ห้องและผู้รับผิดชอบ</a>
+        {% if user and user.can_edit %}
+        {% if qr_enabled() %}<a href="/labels" {% if nav.startswith('/labels') %}aria-current="page"{% endif %}>สติกเกอร์ QR</a>{% endif %}
+        <a href="/inventory" {% if nav.startswith('/inventory') %}aria-current="page"{% endif %}>ตรวจสอบพัสดุ</a>
+        {% endif %}
+        {% if user and user.is_admin %}
+        <a href="/users" class="nav-extra" {% if nav.startswith('/users') %}aria-current="page"{% endif %}>ผู้ใช้</a>
+        <a href="/settings" class="nav-extra" {% if nav.startswith('/settings') %}aria-current="page"{% endif %}>ตั้งค่า</a>
+        {% endif %}
+        {% if user %}<a href="/reports" {% if nav.startswith('/reports') %}aria-current="page"{% endif %}>รายงาน</a>{% endif %}
+        {% set more_current = nav.startswith('/types') or nav.startswith('/users') or nav.startswith('/settings') %}
+        <details class="nav-more">
+          <summary {% if more_current %}class="is-current"{% endif %}>เพิ่มเติม <span aria-hidden="true">▾</span></summary>
+          <div class="nav-more-menu">
+            <a href="/types" {% if nav.startswith('/types') %}aria-current="page"{% endif %}>ประเภท</a>
+            {% if user and user.is_admin %}
+            <a href="/users" {% if nav.startswith('/users') %}aria-current="page"{% endif %}>ผู้ใช้</a>
+            <a href="/settings" {% if nav.startswith('/settings') %}aria-current="page"{% endif %}>ตั้งค่า</a>
+            {% endif %}
+          </div>
+        </details>
+      </nav>
+      <div class="account">
+        {% if user %}
+          {# เมนูชื่อผู้ใช้: เปลี่ยนรหัสผ่าน / ออกจากระบบ #}
+          <details class="account-menu">
+            <summary class="btn-topbar" title="{{ user.display_name or user.username }} · สิทธิ์: {{ user.role }}">
+              <span class="account-name">{{ user.display_name or user.username }}</span> <span aria-hidden="true">▾</span>
+            </summary>
+            <div class="account-menu-list">
+              <a href="/account/password" {% if nav == '/account/password' %}aria-current="page"{% endif %}>เปลี่ยนรหัสผ่าน</a>
+              <form method="post" action="/logout">
+                {{ csrf_field }}
+                <button type="submit">ออกจากระบบ</button>
+              </form>
+            </div>
+          </details>
+        {% elif nav != '/login' %}
+          <a class="btn-topbar" href="/login?next={{ request.url.path | urlencode }}">เข้าสู่ระบบ</a>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+  {% include "_net_warning.html" %}
+  {% include "_backup_warning.html" %}
+  <main class="page">
+    {% if flash %}<p class="flash" role="status">{{ flash }}</p>{% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

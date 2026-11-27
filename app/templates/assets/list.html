@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}ทะเบียนครุภัณฑ์{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>ทะเบียนครุภัณฑ์</h1>
+</div>
+
+{# ตัวกรองอัตโนมัติ (static/js/autofilter.js) แทนที่เฉพาะ #results · URL เปลี่ยนตามตัวกรอง (พิมพ์ต่อเนื่องแทนที่ประวัติเดิม) #}
+<form id="filters" class="filters" action="/assets" method="get" role="search" data-autofilter
+      hx-get="/assets" hx-trigger="krupan:filter" hx-target="#results" hx-swap="outerHTML"
+      hx-indicator="#results" hx-sync="this:replace">
+  <div class="field field-search">
+    <label for="q">ค้นหา</label>
+    <input id="q" name="q" type="search" value="{{ f.q }}" autocomplete="off"
+           placeholder="เลขทะเบียน ชื่อ รายละเอียด หรือที่ตั้ง">
+  </div>
+
+  <div class="field">
+    <label for="category">หมวด</label>
+    <select id="category" name="category">
+      <option value="">ทุกหมวด</option>
+      {% for c in categories %}
+        <option value="{{ c.code }}" {% if f.category == c.code %}selected{% endif %}>{{ c.name }} ({{ c.n }})</option>
+      {% endfor %}
+      {% if no_category_count %}
+        <option value="{{ NO_CATEGORY }}" {% if f.category == NO_CATEGORY %}selected{% endif %}>ไม่มีรหัสประเภท ({{ no_category_count }})</option>
+      {% endif %}
+    </select>
+  </div>
+
+  <div class="field">
+    <label for="status">สถานะ</label>
+    <select id="status" name="status">
+      <option value="">ทุกสถานะ</option>
+      {% for s in statuses %}
+        <option value="{{ s }}" {% if f.status == s %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="field">
+    <label for="fy">ปีงบประมาณ</label>
+    <select id="fy" name="fy">
+      <option value="">ทุกปี</option>
+      {% for y in fiscal_years %}
+        <option value="{{ y }}" {% if f.fy == y %}selected{% endif %}>{{ y }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="field">
+    <label for="loc">ห้อง</label>
+    <select id="loc" name="loc">
+      <option value="">ทุกห้อง</option>
+      {% for l in locations %}
+        <option value="{{ l.id }}" {% if f.loc == l.id | string %}selected{% endif %}>{{ l.name }} ({{ l.n }}){% if not l.active %} · ปิดใช้งาน{% endif %}</option>
+      {% endfor %}
+      <option value="{{ NO_LOCATION }}" {% if f.loc == NO_LOCATION %}selected{% endif %}>ยังไม่จัดเข้าห้อง ({{ no_location_count }})</option>
+    </select>
+  </div>
+
+  {% for key, label, opts, all_label in (("building", "อาคาร/พื้นที่", buildings, "ทุกอาคาร"), ("dept", "ฝ่ายที่ดูแล", departments, "ทุกฝ่าย")) %}
+  <div class="field">
+    <label for="{{ key }}">{{ label }}</label>
+    <select id="{{ key }}" name="{{ key }}">
+      <option value="">{{ all_label }}</option>
+      {% for b in opts.rows %}
+        <option value="{{ b.id }}" {% if f[key] == b.id | string %}selected{% endif %}>{{ b.name }} ({{ b.n }}){% if not b.active %} · ปิดใช้งาน{% endif %}</option>
+      {% endfor %}
+      <option value="{{ NO_AREA }}" {% if f[key] == NO_AREA %}selected{% endif %}>ห้องที่ยังไม่ระบุ ({{ opts.none }})</option>
+    </select>
+  </div>
+  {% endfor %}
+
+  {% if f.loc_text %}
+  {# มาจากหน้าจัดห้อง: กรองตามข้อความ "ใช้ประจำที่" เดิมทั้งข้อความ #}
+  <div class="field">
+    <span class="label-like">ข้อความที่ตั้งเดิม</span>
+    <span class="chip" data-filter-chip>
+      <input type="hidden" name="loc_text" value="{{ f.loc_text }}">
+      “{{ f.loc_text }}”
+      <a href="/assets" title="เอาตัวกรองนี้ออก" aria-label="เอาตัวกรองข้อความที่ตั้งออก">×</a>
+    </span>
+  </div>
+  {% endif %}
+
+  <label class="check">
+    <input id="review" type="checkbox" name="review" value="1" {% if f.review %}checked{% endif %}
+          >
+    <span>เฉพาะรอตรวจสอบ</span>
+  </label>
+
+  {% if qr_enabled() %}
+  <label class="check">
+    <input id="unprinted" type="checkbox" name="unprinted" value="1" {% if f.unprinted %}checked{% endif %}
+          >
+    <span>ยังไม่ได้พิมพ์สติกเกอร์ ({{ unprinted_count }})</span>
+  </label>
+  {% endif %}
+
+  <noscript><button type="submit" class="btn">ค้นหา</button></noscript>
+</form>
+
+{% include "assets/_results.html" %}
+{% endblock %}

@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}บันทึกการจำหน่าย{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>บันทึกการจำหน่าย{% if ok_rows | length > 1 %} {{ ok_rows | length }} ชิ้น{% endif %}</h1>
+  <p class="muted">เมื่อบันทึกแล้ว สถานะของครุภัณฑ์จะเป็น “จำหน่ายแล้ว” · ยกเลิกได้เฉพาะ admin และต้องใส่เหตุผล</p>
+</div>
+
+{% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
+
+{% if done_rows %}
+<p class="hint">ข้ามชิ้นที่จำหน่ายไปแล้ว {{ done_rows | length }} ชิ้น: {% for r in done_rows %}{{ r.reg_no or r.temp_code }}{% if not loop.last %}, {% endif %}{% endfor %}</p>
+{% endif %}
+
+{% if ok_rows %}
+<form method="post" action="/disposals" class="card form">
+  {{ csrf_field }}
+  <div class="table-wrap">
+    <table class="assets">
+      <thead><tr><th scope="col" class="num">ลำดับ</th><th scope="col">เลขทะเบียน</th><th scope="col">รายการ</th>
+        <th scope="col" class="num">ราคา (บาท)</th><th scope="col">ที่ตั้ง</th><th scope="col">สถานะ</th></tr></thead>
+      <tbody>
+        {% for r in ok_rows %}
+        <tr><td class="num">{{ loop.index }}<input type="hidden" name="ids" value="{{ r.id }}"></td>
+          <td class="nowrap"><a href="/assets/{{ r.id }}">{{ r.reg_no or r.temp_code }}</a></td><td>{{ r.name }}</td>
+          <td class="num">{% if r.unit_price is none %}<span class="muted">ไม่ทราบ</span>{% else %}{{ r.unit_price | money }}{% endif %}</td>
+          <td>{{ r.location_name or r.location_text or "—" }}</td><td>{{ r.status }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="form-grid">
+    <fieldset class="field span-2">
+      <legend class="label-like">วันที่จำหน่าย (พ.ศ.)</legend>
+      <div class="date-parts">
+        <input name="day" value="{{ form.day }}" inputmode="numeric" maxlength="2" size="2" aria-label="วัน">
+        <select name="month" aria-label="เดือน">
+          {% for m in months %}<option value="{{ loop.index }}" {% if form.month == loop.index | string %}selected{% endif %}>{{ m }}</option>{% endfor %}
+        </select>
+        <input name="year_be" value="{{ form.year_be }}" inputmode="numeric" maxlength="4" size="4" aria-label="ปี พ.ศ.">
+      </div>
+    </fieldset>
+    <div class="field span-2">
+      <label for="d-method">วิธีจำหน่าย</label>
+      <select id="d-method" name="method" required>
+        <option value="">— เลือก —</option>
+        {% for m in methods %}<option {% if form.method == m %}selected{% endif %}>{{ m }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field span-2">
+      <label for="d-doc">เลขที่หนังสืออนุมัติ (บังคับ)</label>
+      <input id="d-doc" name="doc_ref" value="{{ form.doc_ref }}" required maxlength="200" placeholder="เช่น ที่ สก 0118/1234 ลงวันที่ 1 ต.ค. 2569">
+    </div>
+    <div class="field span-2">
+      <label for="d-amount">จำนวนเงินที่ได้ (บาท){% if ok_rows | length > 1 %} รวมทั้งชุด{% endif %} <span class="muted">ถ้ามี</span></label>
+      <input id="d-amount" name="amount" value="{{ form.amount }}" inputmode="decimal" maxlength="20">
+    </div>
+    <div class="field span-2 span-all">
+      <label for="d-note">หมายเหตุ</label>
+      <input id="d-note" name="note" value="{{ form.note }}" maxlength="1000">
+    </div>
+  </div>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-danger">บันทึกการจำหน่าย {{ ok_rows | length }} ชิ้น</button>
+    <a href="/assets" data-back>ยกเลิก</a>
+  </div>
+</form>
+{% else %}
+<div class="empty"><p>ไม่มีครุภัณฑ์ที่จำหน่ายได้ในรายการที่เลือก</p><p><a href="/assets">กลับไปหน้าทะเบียน</a></p></div>
+{% endif %}
+{% endblock %}
